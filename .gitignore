@@ -1,0 +1,22 @@
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# API keys — NUNCA subir al repo
+config.yaml
+
+# Outputs generados
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store

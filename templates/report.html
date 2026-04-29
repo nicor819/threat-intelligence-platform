@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Threat Profile — {{ target }}</title>
+<style>
+  :root {
+    --bg: #0f0f1a; --card: #1a1a2e; --accent: #e74c3c;
+    --text: #ecf0f1; --muted: #95a5a6; --border: #2c3e50;
+    --green: #2ecc71; --yellow: #f39c12; --red: #e74c3c; --blue: #3498db;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 2rem; }
+  h1 { color: var(--accent); font-size: 1.6rem; margin-bottom: 0.3rem; }
+  h2 { color: var(--blue); font-size: 1.1rem; margin: 1.5rem 0 0.7rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  .meta { color: var(--muted); font-size: 0.82rem; margin-bottom: 1.5rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
+  .card .label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
+  .card .value { font-size: 1.2rem; font-weight: bold; margin-top: 0.3rem; }
+  .risk-CRITICAL { color: #c0392b; } .risk-HIGH { color: var(--red); }
+  .risk-MEDIUM  { color: var(--yellow); } .risk-LOW { color: var(--green); }
+  .risk-CLEAN   { color: var(--green); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin: 2px; }
+  .badge-red    { background: #c0392b22; color: #e74c3c; border: 1px solid #c0392b; }
+  .badge-yellow { background: #f39c1222; color: #f39c12; border: 1px solid #f39c12; }
+  .badge-green  { background: #2ecc7122; color: #2ecc71; border: 1px solid #2ecc71; }
+  .badge-blue   { background: #3498db22; color: #3498db; border: 1px solid #3498db; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: var(--card); color: var(--muted); text-align: left; padding: 6px 10px; font-size: 0.75rem; text-transform: uppercase; }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--border); word-break: break-all; }
+  tr:hover td { background: #ffffff08; }
+  .graph-section img { max-width: 100%; border: 1px solid var(--border); border-radius: 6px; margin-top: 0.5rem; }
+  .section { margin-bottom: 2rem; }
+  pre { background: var(--card); padding: 1rem; border-radius: 6px; font-size: 0.78rem; overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<h1>&#9888; Threat Actor Profile</h1>
+<div class="meta">Target: <strong>{{ target }}</strong> &nbsp;|&nbsp; Generado: {{ generated_at }} &nbsp;|&nbsp; Schema v{{ schema_version }}</div>
+
+<!-- RISK SUMMARY -->
+<div class="section">
+  <h2>Resumen de Riesgo</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="label">Risk Score</div>
+      <div class="value risk-{{ risk.level }}">{{ risk.score }}/100</div>
+    </div>
+    <div class="card">
+      <div class="label">Nivel</div>
+      <div class="value risk-{{ risk.level }}">{{ risk.level }}</div>
+    </div>
+    <div class="card">
+      <div class="label">VT Verdict</div>
+      <div class="value">{{ risk.vt_verdict }}</div>
+    </div>
+    <div class="card">
+      <div class="label">OTX Pulses</div>
+      <div class="value">{{ risk.otx_pulses }}</div>
+    </div>
+    <div class="card">
+      <div class="label">URLhaus Hits</div>
+      <div class="value">{{ risk.urlhaus_hits }}</div>
+    </div>
+    <div class="card">
+      <div class="label">ThreatFox Hits</div>
+      <div class="value">{{ risk.threatfox_hits }}</div>
+    </div>
+  </div>
+  {% if risk.geo_flags %}
+  <div style="margin-top:0.5rem">
+    {% for f in risk.geo_flags %}<span class="badge badge-yellow">{{ f }}</span>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- WHOIS -->
+<div class="section">
+  <h2>WHOIS / DNS</h2>
+  <div class="grid">
+    {% if whois.registrar %}<div class="card"><div class="label">Registrar</div><div class="value" style="font-size:0.95rem">{{ whois.registrar }}</div></div>{% endif %}
+    {% if whois.creation_date %}<div class="card"><div class="label">Creación</div><div class="value" style="font-size:0.9rem">{{ whois.creation_date }}</div></div>{% endif %}
+    {% if whois.expiration_date %}<div class="card"><div class="label">Expiración</div><div class="value" style="font-size:0.9rem">{{ whois.expiration_date }}</div></div>{% endif %}
+    {% if whois.registrant_org %}<div class="card"><div class="label">Org. Registrante</div><div class="value" style="font-size:0.9rem">{{ whois.registrant_org }}</div></div>{% endif %}
+    {% if whois.asn %}<div class="card"><div class="label">ASN</div><div class="value">{{ whois.asn }}</div></div>{% endif %}
+    {% if whois.network_cidr %}<div class="card"><div class="label">Red CIDR</div><div class="value">{{ whois.network_cidr }}</div></div>{% endif %}
+  </div>
+  {% if whois.resolved_ips %}
+  <p style="margin-top:0.7rem;color:var(--muted);font-size:0.85rem">IPs resueltas:</p>
+  {% for ip in whois.resolved_ips %}<span class="badge badge-blue">{{ ip }}</span>{% endfor %}
+  {% endif %}
+  {% if whois.dns_records %}
+  <p style="margin-top:0.7rem;color:var(--muted);font-size:0.85rem">Registros DNS:</p>
+  <pre>{{ whois.dns_records | tojson(indent=2) }}</pre>
+  {% endif %}
+</div>
+
+<!-- GEOLOCATION -->
+<div class="section">
+  <h2>Geolocalización</h2>
+  <div class="grid">
+    {% if geo.country %}<div class="card"><div class="label">País</div><div class="value">{{ geo.country_code }} — {{ geo.country }}</div></div>{% endif %}
+    {% if geo.city %}<div class="card"><div class="label">Ciudad</div><div class="value">{{ geo.city }}</div></div>{% endif %}
+    {% if geo.isp %}<div class="card"><div class="label">ISP</div><div class="value" style="font-size:0.9rem">{{ geo.isp }}</div></div>{% endif %}
+    {% if geo.asn_name %}<div class="card"><div class="label">ASN Name</div><div class="value" style="font-size:0.9rem">{{ geo.asn_name }}</div></div>{% endif %}
+    {% if geo.latitude %}<div class="card"><div class="label">Coordenadas</div><div class="value" style="font-size:0.9rem">{{ geo.latitude }}, {{ geo.longitude }}</div></div>{% endif %}
+  </div>
+</div>
+
+<!-- VIRUSTOTAL -->
+<div class="section">
+  <h2>VirusTotal</h2>
+  {% if vt.error %}
+  <p style="color:var(--yellow)">{{ vt.error }}</p>
+  {% elif not vt.found %}
+  <p style="color:var(--muted)">No encontrado en VirusTotal.</p>
+  {% else %}
+  <div class="grid">
+    <div class="card"><div class="label">Malicioso</div><div class="value risk-HIGH">{{ vt.malicious }}</div></div>
+    <div class="card"><div class="label">Sospechoso</div><div class="value risk-MEDIUM">{{ vt.suspicious }}</div></div>
+    <div class="card"><div class="label">Limpio</div><div class="value risk-CLEAN">{{ vt.harmless }}</div></div>
+    <div class="card"><div class="label">Sin detectar</div><div class="value">{{ vt.undetected }}</div></div>
+    {% if vt.reputation_score is not none %}
+    <div class="card"><div class="label">Reputación</div><div class="value">{{ vt.reputation_score }}</div></div>
+    {% endif %}
+  </div>
+  {% if vt.tags %}<div style="margin-top:0.5rem">{% for t in vt.tags %}<span class="badge badge-red">{{ t }}</span>{% endfor %}</div>{% endif %}
+  {% if vt.detections %}
+  <table style="margin-top:1rem">
+    <tr><th>Motor AV</th><th>Detección</th><th>Categoría</th></tr>
+    {% for d in vt.detections %}
+    <tr><td>{{ d.engine }}</td><td>{{ d.result }}</td><td>{{ d.category }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% endif %}
+</div>
+
+<!-- THREAT INTEL -->
+<div class="section">
+  <h2>Threat Intelligence</h2>
+
+  {% if intel.otx_pulses %}
+  <h3 style="color:var(--muted);font-size:0.9rem;margin:0.8rem 0 0.4rem">OTX AlienVault ({{ intel.otx_pulse_count }} pulses)</h3>
+  <table>
+    <tr><th>Nombre</th><th>Autor</th><th>TLP</th><th>Tags</th><th>Fecha</th></tr>
+    {% for p in intel.otx_pulses %}
+    <tr>
+      <td>{{ p.name }}</td><td>{{ p.author }}</td><td>{{ p.tlp }}</td>
+      <td>{% for t in p.tags %}<span class="badge badge-blue">{{ t }}</span>{% endfor %}</td>
+      <td>{{ p.created }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if intel.urlhaus %}
+  <h3 style="color:var(--muted);font-size:0.9rem;margin:0.8rem 0 0.4rem">URLhaus ({{ intel.urlhaus|length }} URLs)</h3>
+  <table>
+    <tr><th>URL</th><th>Estado</th><th>Threat</th><th>Tags</th></tr>
+    {% for u in intel.urlhaus %}
+    <tr>
+      <td>{{ u.url }}</td>
+      <td><span class="badge {% if u.url_status == 'online' %}badge-red{% else %}badge-green{% endif %}">{{ u.url_status }}</span></td>
+      <td>{{ u.threat }}</td>
+      <td>{% for t in u.tags %}<span class="badge badge-yellow">{{ t }}</span>{% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if intel.threatfox %}
+  <h3 style="color:var(--muted);font-size:0.9rem;margin:0.8rem 0 0.4rem">ThreatFox ({{ intel.threatfox|length }} IOCs)</h3>
+  <table>
+    <tr><th>IOC</th><th>Tipo</th><th>Malware</th><th>Confianza</th><th>Reporter</th></tr>
+    {% for i in intel.threatfox %}
+    <tr>
+      <td>{{ i.ioc }}</td><td>{{ i.ioc_type }}</td>
+      <td><span class="badge badge-red">{{ i.malware }}</span></td>
+      <td>{{ i.confidence }}%</td><td>{{ i.reporter }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if intel.shodan_summary %}
+  <h3 style="color:var(--muted);font-size:0.9rem;margin:0.8rem 0 0.4rem">Shodan</h3>
+  <div class="grid">
+    <div class="card"><div class="label">Puertos abiertos</div><div class="value">{{ intel.shodan_summary.ports | join(', ') }}</div></div>
+    {% if intel.shodan_summary.os %}<div class="card"><div class="label">OS</div><div class="value">{{ intel.shodan_summary.os }}</div></div>{% endif %}
+    {% if intel.shodan_summary.vulns %}<div class="card"><div class="label">CVEs</div><div class="value risk-HIGH">{{ intel.shodan_summary.vulns | join(', ') }}</div></div>{% endif %}
+  </div>
+  {% endif %}
+
+  {% if intel.errors %}
+  <p style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem">Errores: {{ intel.errors | join(' | ') }}</p>
+  {% endif %}
+</div>
+
+<!-- GRAPH -->
+{% if graph_png %}
+<div class="section graph-section">
+  <h2>Diagrama de Relaciones</h2>
+  <img src="{{ graph_png }}" alt="Relationship graph">
+  {% if graph_html %}<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--muted)">Versión interactiva: <a href="{{ graph_html }}" style="color:var(--blue)">abrir grafo HTML</a></p>{% endif %}
+</div>
+{% endif %}
+
+</body>
+</html>

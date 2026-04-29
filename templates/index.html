@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threat Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=6">
+</head>
+<body>
+
+  <!-- ── Landing ─────────────────────────────────────────── -->
+  <div id="view-landing" class="view-landing">
+    <div class="landing-inner">
+      <div class="landing-logo">
+        <span class="logo-mark">◈</span>
+        <span class="logo-text">Threat Intelligence</span>
+      </div>
+      <p class="landing-sub">Ingresa una URL o indicador sospechoso para obtener un perfil completo</p>
+
+      <div class="landing-form">
+        <div class="url-input-wrap" id="landing-input-wrap">
+          <span class="url-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </span>
+          <input
+            id="landing-input"
+            type="text"
+            placeholder="https://dominio-sospechoso.com  ·  192.168.1.1"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button id="landing-btn" class="btn-primary">Analizar</button>
+        </div>
+        <p id="landing-error" class="input-error" style="display:none"></p>
+      </div>
+
+      <div class="landing-hints">
+        <span>URL completa</span>
+        <span class="hint-sep">·</span>
+        <span>Dominio</span>
+        <span class="hint-sep">·</span>
+        <span>Dirección IP</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Platform view ───────────────────────────────────── -->
+  <div id="view-platform" class="view-platform" style="display:none">
+
+    <header class="plat-header">
+      <div class="plat-logo">
+        <span class="logo-mark-sm">◈</span>
+        <span>Threat Intel</span>
+      </div>
+      <div class="plat-search">
+        <span class="url-icon-sm">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <input
+          id="plat-input"
+          type="text"
+          placeholder="Nueva URL o indicador…"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button id="plat-btn" class="btn-primary-sm">Analizar</button>
+      </div>
+    </header>
+
+    <div class="plat-body">
+
+      <!-- Sidebar -->
+      <aside class="plat-sidebar">
+        <div class="sidebar-section-label">Historial</div>
+        <div id="history-list" class="history-list"></div>
+      </aside>
+
+      <!-- Main -->
+      <main id="plat-main" class="plat-main">
+        <div class="empty-state" id="empty-state">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Selecciona un análisis del historial</span>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+<script src="/static/app.js?v=6"></script>
+</body>
+</html>

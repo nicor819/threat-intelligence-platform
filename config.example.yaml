@@ -1,0 +1,19 @@
+# Copia este archivo a config.yaml y completa las API keys
+# En producción (Railway/Render) usa variables de entorno en vez de este archivo
+
+api_keys:
+  virustotal:        ""   # env: VT_API_KEY
+  urlscan:           ""   # env: URLSCAN_API_KEY
+  alienvault:        ""   # env: ALIENVAULT_API_KEY
+  threatfox:         ""   # env: THREATFOX_API_KEY
+  mandiant_key_id:   ""   # env: MANDIANT_KEY_ID
+  mandiant_key_secret: "" # env: MANDIANT_KEY_SECRET
+  socradar:          ""   # env: SOCRADAR_API_KEY
+  shodan:            ""   # env: SHODAN_API_KEY
+
+settings:
+  rate_limit_delay: 1
+  max_forum_pages: 3
+
+graph:
+  max_nodes: 30
