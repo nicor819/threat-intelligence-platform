@@ -6,6 +6,8 @@ from .urlscan import URLScanClient
 from .mandiant import MandiantClient
 from .socradar import SOCRadarClient
 from .threat_profile import ThreatProfile
+from .host_tracker import HostTracker
 
 __all__ = ["WhoisLookup", "VirusTotalClient", "GeoLocator", "ForumScraper",
-           "URLScanClient", "MandiantClient", "SOCRadarClient", "ThreatProfile"]
+           "URLScanClient", "MandiantClient", "SOCRadarClient", "ThreatProfile",
+           "HostTracker"]

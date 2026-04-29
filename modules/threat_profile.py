@@ -7,14 +7,15 @@ class ThreatProfile:
     def __init__(self, target: str):
         self.target      = target
         self.created_at  = datetime.utcnow().isoformat() + "Z"
-        self.whois       = {}
-        self.virustotal  = {}
-        self.geolocation = {}
-        self.intel       = {}
-        self.urlscan     = {}
-        self.mandiant    = {}
-        self.socradar    = {}
-        self._risk_score = None
+        self.whois        = {}
+        self.virustotal   = {}
+        self.geolocation  = {}
+        self.intel        = {}
+        self.urlscan      = {}
+        self.mandiant     = {}
+        self.socradar     = {}
+        self.host_tracker = {}
+        self._risk_score  = None
 
     def build(
         self,
@@ -25,31 +26,34 @@ class ThreatProfile:
         urlscan_data: dict = None,
         mandiant_data: dict = None,
         socradar_data: dict = None,
+        host_tracker_data: dict = None,
     ) -> dict:
-        self.whois       = whois_data
-        self.virustotal  = vt_data
-        self.geolocation = geo_data
-        self.intel       = intel_data
-        self.urlscan     = urlscan_data or {}
-        self.mandiant    = mandiant_data or {}
-        self.socradar    = socradar_data or {}
-        self._risk_score = self._calculate_risk()
+        self.whois        = whois_data
+        self.virustotal   = vt_data
+        self.geolocation  = geo_data
+        self.intel        = intel_data
+        self.urlscan      = urlscan_data or {}
+        self.mandiant     = mandiant_data or {}
+        self.socradar     = socradar_data or {}
+        self.host_tracker = host_tracker_data or {}
+        self._risk_score  = self._calculate_risk()
 
         return {
-            "schema_version": "1.2",
-            "generated_at":   self.created_at,
-            "target":         self.target,
-            "risk_summary":   self._risk_summary(),
-            "iocs":           self._extract_iocs(),
-            "whois":          self.whois,
-            "geolocation":    self.geolocation,
-            "virustotal":     self.virustotal,
-            "urlscan":        self.urlscan,
-            "mandiant":       self.mandiant,
-            "socradar":       self.socradar,
+            "schema_version":    "1.3",
+            "generated_at":      self.created_at,
+            "target":            self.target,
+            "risk_summary":      self._risk_summary(),
+            "iocs":              self._extract_iocs(),
+            "whois":             self.whois,
+            "geolocation":       self.geolocation,
+            "virustotal":        self.virustotal,
+            "urlscan":           self.urlscan,
+            "mandiant":          self.mandiant,
+            "socradar":          self.socradar,
             "threat_intelligence": self.intel,
-            "graph_nodes":    self._extract_graph_nodes(),
-            "graph_edges":    self._extract_graph_edges(),
+            "host_tracker":      self.host_tracker,
+            "graph_nodes":       self._extract_graph_nodes(),
+            "graph_edges":       self._extract_graph_edges(),
         }
 
     def _calculate_risk(self) -> int:

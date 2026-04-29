@@ -134,9 +134,10 @@ const STEPS = [
   { name: 'VirusTotal',      icon: '○' },
   { name: 'URLScan.io',      icon: '○' },
   { name: 'Geolocalización', icon: '○' },
+  { name: 'Threat Intel',    icon: '○' },
   { name: 'Mandiant',        icon: '○' },
   { name: 'SOCRadar',        icon: '○' },
-  { name: 'Threat Intel',    icon: '○' },
+  { name: 'Host Tracker',    icon: '○' },
   { name: 'Grafo',           icon: '○' },
 ];
 
@@ -210,7 +211,10 @@ function renderProfile(p) {
   // ⑦  Threat Intel
   platMain.appendChild(intelEl(p.threat_intelligence || {}));
 
-  // ⑧  Graph
+  // ⑧  Host Tracker
+  if (p.host_tracker) platMain.appendChild(hostTrackerEl(p.host_tracker));
+
+  // ⑨  Graph
   if (p.graph_png_url) platMain.appendChild(graphEl(p));
 
   platMain.querySelectorAll('.section, .stat-cell, .risk-header')
@@ -897,6 +901,120 @@ function graphEl(p) {
     acts.appendChild(op);
   }
   bd.appendChild(acts);
+  return s;
+}
+
+// ── Host Tracker ──────────────────────────────────────────────────────────────
+function hostTrackerEl(ht) {
+  const s  = section('Host Tracker');
+  const hd = s.querySelector('.section-hd');
+  const bd = s.querySelector('.section-bd');
+
+  if (ht.error) { bd.innerHTML = `<p class="no-data">${esc(ht.error)}</p>`; return s; }
+
+  // Badge IP resuelta
+  if (ht.ip) {
+    const ip = el('span', 'badge b-gray');
+    ip.style.marginLeft = 'auto';
+    ip.textContent = ht.ip;
+    hd.appendChild(ip);
+  }
+
+  // ── Certificado TLS ──
+  const cert = ht.certificate || {};
+  {
+    label(bd, 'Certificado TLS');
+    if (cert.error) {
+      const p = el('p', 'no-data'); p.textContent = cert.error; bd.appendChild(p);
+    } else if (cert.valid === false) {
+      const p = el('p', 'no-data'); p.textContent = cert.error || 'Certificado inválido'; bd.appendChild(p);
+    } else {
+      const daysLeft = cert.days_remaining;
+      const daysColor = daysLeft < 0 ? 'var(--risk-crit)' : daysLeft <= 30 ? 'var(--risk-high)' : 'var(--risk-clean)';
+      const daysLabel = daysLeft < 0 ? `Expirado hace ${Math.abs(daysLeft)} días` :
+                        daysLeft <= 30 ? `⚠ Expira en ${daysLeft} días` :
+                        `Válido — ${daysLeft} días restantes`;
+
+      const statsRow = el('div', 'vt-stats');
+      [
+        { k: 'Días restantes', v: daysLeft ?? '—', c: daysColor },
+        { k: 'TLS',            v: cert.tls_version || '—', c: null },
+        { k: 'Cipher',         v: cert.cipher || '—',       c: null },
+      ].forEach(i => {
+        const c = el('div', 'vt-cell');
+        c.innerHTML = `<div class="vl" style="${i.c ? `color:${i.c}` : ''}">${esc(String(i.v))}</div><div class="vk">${i.k}</div>`;
+        statsRow.appendChild(c);
+      });
+      bd.appendChild(statsRow);
+
+      // Barra de expiración visual
+      const bar = el('div', '');
+      bar.style.cssText = 'margin:-.25rem 0 .75rem;font-size:.75rem';
+      bar.innerHTML = `<span style="color:${daysColor}">${esc(daysLabel)}</span>`;
+      bd.appendChild(bar);
+
+      bd.appendChild(kvList([
+        ['Subject CN',  cert.subject_cn],
+        ['Emisor',      cert.issuer_org || cert.issuer_cn],
+        ['Válido desde',cert.not_before?.slice(0,10)],
+        ['Expira',      cert.not_after?.slice(0,10)],
+        ['Serial',      cert.serial],
+      ].filter(([,v]) => v)));
+
+      if (cert.sans?.length) {
+        const lbl = el('div','sub-label'); lbl.textContent = 'Subject Alternative Names'; bd.appendChild(lbl);
+        const tl = el('div','tag-row');
+        cert.sans.forEach(san => { const sp = el('span','tag'); sp.textContent = san; tl.appendChild(sp); });
+        bd.appendChild(tl);
+      }
+    }
+  }
+
+  // ── Puertos abiertos ──
+  const ports = ht.open_ports || [];
+  label(bd, `Puertos abiertos — ${ports.length} encontrados`);
+  if (!ports.length) {
+    const p = el('p','no-data'); p.textContent = 'Ningún puerto responde en el rango escaneado.'; bd.appendChild(p);
+  } else {
+    const riskPorts = new Set([21,23,25,445,3389,3306,5432,6379,27017,1433]);
+    const t = tbl(['Puerto', 'Servicio', 'Riesgo', 'Banner']);
+    ports.forEach(p => {
+      const isRisk = riskPorts.has(p.port);
+      addRow(t, [
+        `<strong style="font-family:monospace">${p.port}</strong>`,
+        `<span class="badge ${isRisk ? 'b-amber' : 'b-gray'}">${esc(p.service)}</span>`,
+        isRisk ? `<span style="color:var(--risk-high);font-size:.72rem">⚠ Expuesto</span>` : `<span style="color:var(--muted);font-size:.72rem">Normal</span>`,
+        `<span style="font-size:.72rem;color:var(--muted);font-family:monospace">${esc(p.banner||'—')}</span>`,
+      ]);
+    });
+    bd.appendChild(t);
+  }
+
+  // ── Cambios detectados ──
+  const chg = ht.domain_changes || {};
+  label(bd, 'Cambios detectados');
+  if (chg.status === 'no_previous_scan') {
+    const p = el('p','no-data'); p.textContent = 'Primer análisis — sin baseline previo para comparar.'; bd.appendChild(p);
+  } else if (!chg.changes?.length) {
+    const p = el('p',''); p.style.cssText='font-size:.8rem;color:var(--risk-clean)';
+    p.textContent = `✓ Sin cambios detectados respecto al análisis anterior (${chg.last_scan?.slice(0,10) || '—'}).`;
+    bd.appendChild(p);
+  } else {
+    const t = tbl(['Campo', 'Tipo', 'Detalle']);
+    chg.changes.forEach(c => {
+      const typeColor = c.type === 'added' ? 'b-green' : c.type === 'removed' ? 'b-red' : c.type === 'expired' ? 'b-red' : c.type === 'warning' ? 'b-amber' : 'b-gray';
+      addRow(t, [
+        esc(c.field),
+        `<span class="badge ${typeColor}">${esc(c.type)}</span>`,
+        esc(c.detail),
+      ]);
+    });
+    bd.appendChild(t);
+    const note = el('p',''); note.style.cssText='font-size:.72rem;color:var(--muted);margin-top:.5rem';
+    note.textContent = `Comparado con análisis del ${chg.last_scan?.slice(0,10) || '—'}`;
+    bd.appendChild(note);
+  }
+
   return s;
 }
 

@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 import yaml
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 
-from modules import WhoisLookup, VirusTotalClient, GeoLocator, ForumScraper, URLScanClient, MandiantClient, SOCRadarClient, ThreatProfile
+from modules import WhoisLookup, VirusTotalClient, GeoLocator, ForumScraper, URLScanClient, MandiantClient, SOCRadarClient, ThreatProfile, HostTracker
 from graph_builder import GraphBuilder
 
 app      = Flask(__name__)
@@ -158,6 +158,7 @@ STEPS = [
     ("Threat Intel",    "intel"),
     ("Mandiant",        "mandiant"),
     ("SOCRadar",        "socradar"),
+    ("Host Tracker",    "hosttracker"),
     ("Grafo",           "graph"),
 ]
 
@@ -201,9 +202,13 @@ def _worker(job_id: str, target: str, original_url: str, q: queue.Queue):
             delay=delay,
         ).search(target))
         time.sleep(delay)
+        host_track = step("Host Tracker", lambda: HostTracker(
+            profiles_dir=str(PROFILES),
+        ).check(target))
+        time.sleep(delay)
 
         profile = ThreatProfile(target)
-        full    = profile.build(whois, vt, geo, intel, urlscan, mandiant, socradar)
+        full    = profile.build(whois, vt, geo, intel, urlscan, mandiant, socradar, host_track)
         full["original_url"] = original_url
 
         q.put({"type": "step", "data": {"name": "Grafo", "status": "running"}})
