@@ -250,8 +250,9 @@ function riskHeaderEl(p) {
         ? `<div class="flag-row">${risk.geo_flags.map(f => `<span class="flag-pill">${f}</span>`).join('')}</div>`
         : ''}
     </div>
-    <button class="btn-tir" onclick="downloadReport(window._currentProfile)" title="Descargar informe TIR">
-      ↓ TIR
+    <button class="btn-tir" onclick="downloadReport(window._currentProfile)" title="Descargar Threat Intelligence Report">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+      Descargar TIR
     </button>`;
   return d;
 }
@@ -1027,82 +1028,70 @@ function downloadReport(p) {
   const vt     = p.virustotal   || {};
   const us     = p.urlscan      || {};
   const man    = p.mandiant     || {};
-  const sr     = p.socradar     || {};
   const intel  = p.threat_intelligence || {};
   const iocs   = p.iocs         || [];
+  const ht     = p.host_tracker || {};
   const now    = new Date().toISOString().slice(0,16).replace('T',' ');
   const scan   = us.latest_scan || us.new_scan || {};
   const vs     = us.verdicts    || {};
 
-  const riskColors = {
-    CRITICAL: '#ef4444', HIGH: '#f97316', MEDIUM: '#f59e0b', LOW: '#86efac', CLEAN: '#6ee7b7'
-  };
-  const rc = riskColors[risk.level] || '#999';
+  // ── helpers ──
+  const RC = { CRITICAL:'#c0392b', HIGH:'#d35400', MEDIUM:'#d4ac0d', LOW:'#27ae60', CLEAN:'#1e8449' };
+  const rc = RC[risk.level] || '#555';
+  const tlpColor = { CRITICAL:'#c0392b', HIGH:'#c0392b', MEDIUM:'#f39c12', LOW:'#27ae60', CLEAN:'#27ae60' }[risk.level] || '#555';
 
-  function h(s) {
-    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function h(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function kv(k,v) { if(!v && v!==0) return ''; return `<tr><td class="k">${h(k)}</td><td class="v">${h(v)}</td></tr>`; }
+  function sec(num, title, body) {
+    return `<div class="sec"><div class="sec-hd"><span class="sec-num">${num}</span><span class="sec-title">${title}</span></div><div class="sec-bd">${body}</div></div>`;
   }
-  function row(k, v) {
-    if (!v && v !== 0) return '';
-    return `<tr><td class="kk">${h(k)}</td><td>${h(v)}</td></tr>`;
+  function tbl(heads, rows) {
+    if(!rows.length) return '<p class="nil">Sin datos registrados.</p>';
+    return `<table><thead><tr>${heads.map(h2=>`<th>${h2}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
   }
-  function badge(text, color) {
-    return `<span style="background:${color}22;color:${color};border:1px solid ${color}44;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase">${h(text)}</span>`;
+  function chip(text, color) {
+    return `<span style="display:inline-block;background:${color}18;color:${color};border:1px solid ${color}55;padding:1px 6px;border-radius:2px;font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap">${h(text)}</span>`;
   }
-  function section(title, content) {
-    return `
-      <div class="rpt-section">
-        <div class="rpt-section-title">${title}</div>
-        ${content}
-      </div>`;
-  }
-  function table(headers, rows) {
-    if (!rows.length) return '<p class="empty">Sin datos</p>';
-    return `<table><thead><tr>${headers.map(h2=>`<th>${h2}</th>`).join('')}</tr></thead>
-      <tbody>${rows.join('')}</tbody></table>`;
-  }
+  function sublabel(t) { return `<p class="sl">${t}</p>`; }
 
-  // ── IOC table ──
-  const iocTypes = {
-    critical: '#ef4444', high: '#f97316', medium: '#f59e0b', info: '#888'
-  };
+  // ── build finding bullets for executive summary ──
+  const findings = [];
+  if (vt.malicious > 0)        findings.push(`VirusTotal detecta el indicador como <strong>MALICIOUS</strong> en ${vt.malicious} motores AV (${vt.suspicious} sospechosos, ${vt.harmless} limpios).`);
+  if (vs.malicious)            findings.push(`URLScan.io clasifica el sitio como <strong>MALICIOUS</strong> con score ${vs.score}/100.`);
+  if (man.mscore != null && man.mscore >= 50) findings.push(`Mandiant Threat Intelligence asigna un MScore de <strong>${man.mscore}/100</strong> (${man.verdict}).`);
+  if (risk.otx_pulses > 0)    findings.push(`Presente en <strong>${risk.otx_pulses} pulses</strong> de AlienVault OTX.`);
+  if (risk.threatfox_hits > 0) findings.push(`Registrado en <strong>${risk.threatfox_hits} IOC(s)</strong> de ThreatFox.`);
+  if (risk.urlhaus_hits > 0)   findings.push(`Detectado en <strong>${risk.urlhaus_hits} URL(s)</strong> de URLhaus.`);
+  if (risk.mandiant_actors > 0) findings.push(`Asociado a <strong>${risk.mandiant_actors} actor(es)</strong> de amenaza en Mandiant.`);
+  if (ht.certificate?.expired) findings.push(`Certificado TLS <strong>expirado</strong>.`);
+  if (ht.certificate?.expiring_soon) findings.push(`Certificado TLS próximo a vencer: <strong>${ht.certificate.days_remaining} días</strong>.`);
+  const riskFlags = risk.geo_flags || [];
+
+  // ── recommendations ──
+  const recs = [];
+  if (vt.malicious > 0 || vs.malicious) recs.push('Bloquear el indicador en firewalls, proxies y listas negras DNS de la organización.');
+  if (iocs.filter(i=>i.type==='ip').length) recs.push('Agregar las IPs identificadas a las reglas de bloqueo en el SIEM/EDR.');
+  if (iocs.filter(i=>i.type==='url'||i.type==='domain').length) recs.push('Bloquear dominios y URLs maliciosas en el proxy web y DNS filtering.');
+  if (riskFlags.includes('PROXY/VPN')) recs.push('El tráfico proviene de una infraestructura VPN/Proxy — considerar políticas de acceso condicional.');
+  if (riskFlags.includes('HOSTING/DATACENTER')) recs.push('Infraestructura en datacenter — revisar si hay otros activos expuestos en el mismo ASN.');
+  if (ht.open_ports?.some(pp => [21,23,445,3389].includes(pp.port))) recs.push('Se detectaron puertos de alto riesgo abiertos (FTP/Telnet/RDP/SMB) — revisar exposición.');
+  if (!recs.length) recs.push('Continuar monitoreo pasivo. No se requieren acciones de bloqueo inmediatas.');
+
+  // ── IOC rows by risk level ──
+  const iocRisk = { critical:'#c0392b', high:'#d35400', medium:'#d4ac0d', info:'#888' };
   const iocRows = iocs.map(i => `<tr>
-    <td><span style="width:7px;height:7px;border-radius:50%;background:${iocTypes[i.risk]||'#888'};display:inline-block;margin-right:4px"></span></td>
-    <td><code style="font-size:9px;background:#f0f0f0;padding:1px 4px;border-radius:2px">${h(i.type)}</code></td>
-    <td style="font-family:monospace;font-size:10px;word-break:break-all">${h(i.value)}</td>
-    <td>${h(i.source)}</td>
+    <td style="width:8px;padding-right:0"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${iocRisk[i.risk]||'#aaa'}"></span></td>
+    <td>${chip(i.type, iocRisk[i.risk]||'#888')}</td>
+    <td style="font-family:'Courier New',monospace;font-size:9px;word-break:break-all">${h(i.value)}</td>
+    <td style="white-space:nowrap">${h(i.source)}</td>
     <td>${h(i.context)}</td>
   </tr>`);
 
-  // ── VT detections ──
-  const vtRows = (vt.detections||[]).map(d => `<tr>
-    <td>${h(d.engine)}</td>
-    <td>${h(d.result||'—')}</td>
-    <td>${h(d.category)}</td>
-  </tr>`);
-
-  // ── OTX pulses ──
-  const otxRows = (intel.otx_pulses||[]).map(pp => `<tr>
-    <td>${h(pp.name)}</td>
-    <td>${h(pp.author)}</td>
-    <td>${(pp.malware_families||[]).map(f=>h(f)).join(', ')||'—'}</td>
-    <td>${(pp.attack_ids||[]).slice(0,3).join(', ')||'—'}</td>
-  </tr>`);
-
-  // ── ThreatFox ──
-  const tfRows = (intel.threatfox||[]).map(i => `<tr>
-    <td style="font-family:monospace;font-size:9px">${h(i.ioc)}</td>
-    <td>${h(i.malware)}</td>
-    <td>${i.confidence ?? '—'}%</td>
-    <td>${h((i.first_seen||'').slice(0,10))}</td>
-  </tr>`);
-
-  // ── URLhaus ──
-  const uhRows = (intel.urlhaus||[]).map(u => `<tr>
-    <td style="font-family:monospace;font-size:9px;word-break:break-all">${h(u.url)}</td>
-    <td>${h(u.url_status)}</td>
-    <td>${h(u.threat)}</td>
-  </tr>`);
+  const vtRows  = (vt.detections||[]).map(d=>`<tr><td>${h(d.engine)}</td><td style="font-family:monospace;font-size:9px">${h(d.result||'—')}</td><td>${chip(d.category, d.category==='malicious'?'#c0392b':'#d35400')}</td></tr>`);
+  const otxRows = (intel.otx_pulses||[]).map(pp=>`<tr><td>${h(pp.name)}</td><td>${h(pp.author)}</td><td>${(pp.malware_families||[]).map(f=>chip(f,'#c0392b')).join(' ')||'—'}</td><td style="font-size:9px">${(pp.attack_ids||[]).slice(0,3).join(', ')||'—'}</td></tr>`);
+  const tfRows  = (intel.threatfox||[]).map(i=>`<tr><td style="font-family:monospace;font-size:9px;word-break:break-all">${h(i.ioc)}</td><td>${chip(i.malware,'#c0392b')}</td><td>${i.confidence??'—'}%</td><td>${h((i.first_seen||'').slice(0,10))}</td></tr>`);
+  const uhRows  = (intel.urlhaus||[]).map(u=>`<tr><td style="font-family:monospace;font-size:9px;word-break:break-all">${h(u.url)}</td><td>${chip(u.url_status, u.url_status==='online'?'#c0392b':'#555')}</td><td>${h(u.threat||'—')}</td></tr>`);
+  const portRows= (ht.open_ports||[]).map(pp=>{const risk2=[21,23,445,3389,3306,5432,6379,27017,1433].includes(pp.port);return`<tr><td style="font-family:monospace;font-weight:700">${pp.port}</td><td>${chip(pp.service, risk2?'#d35400':'#555')}</td><td style="font-size:9px;color:#888">${h(pp.banner||'—')}</td><td>${risk2?chip('alto riesgo','#c0392b'):chip('normal','#27ae60')}</td></tr>`;});
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -1110,262 +1099,362 @@ function downloadReport(p) {
 <meta charset="UTF-8">
 <title>TIR — ${h(p.target)}</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 11px; color: #1a1a1a; background: #fff; line-height: 1.5; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;color:#1a1a1a;background:#fff;line-height:1.6}
 
-  .cover { padding: 48px 56px 36px; border-bottom: 3px solid #1a1a1a; }
-  .cover-top { display: flex; align-items: flex-start; justify-content: space-between; }
-  .cover-brand { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #888; }
-  .cover-date  { font-size: 10px; color: #888; text-align: right; }
-  .cover-target { font-size: 26px; font-weight: 700; margin: 20px 0 4px; word-break: break-all; }
-  .cover-orig   { font-size: 11px; color: #666; margin-bottom: 20px; word-break: break-all; }
+/* ── print bar ── */
+.pbar{position:fixed;top:0;left:0;right:0;background:#111;color:#fff;padding:9px 24px;display:flex;align-items:center;justify-content:space-between;font-size:11px;z-index:999;gap:12px}
+.pbar-info{display:flex;align-items:center;gap:10px}
+.pbar button{background:#fff;color:#111;border:none;padding:5px 14px;border-radius:3px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.03em}
+body{padding-top:40px}
+@media print{.pbar{display:none!important}body{padding-top:0}}
 
-  .risk-badge { display: inline-flex; align-items: center; gap: 12px; padding: 12px 20px; border: 2px solid ${rc}; border-radius: 6px; }
-  .risk-score { font-size: 32px; font-weight: 800; color: ${rc}; line-height: 1; }
-  .risk-info  { display: flex; flex-direction: column; }
-  .risk-level { font-size: 13px; font-weight: 700; color: ${rc}; text-transform: uppercase; letter-spacing: .08em; }
-  .risk-label { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: .08em; }
+/* ── cover ── */
+.cover{padding:44px 56px 32px;border-bottom:4px solid #1a1a1a;page-break-after:always}
+.cover-meta{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
+.tlp{display:inline-block;background:${tlpColor};color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:2px}
+.cover-right{text-align:right;font-size:9px;color:#666;line-height:1.8}
+.report-type{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888;margin-bottom:6px}
+.cover-target{font-size:28px;font-weight:800;color:#111;word-break:break-all;margin-bottom:4px;line-height:1.2}
+.cover-orig{font-size:10px;color:#888;margin-bottom:22px;word-break:break-all}
 
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
-  .sg-cell { background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; padding: 8px 10px; }
-  .sg-val  { font-size: 13px; font-weight: 700; }
-  .sg-key  { font-size: 8px; text-transform: uppercase; letter-spacing: .07em; color: #888; margin-top: 2px; }
+/* ── risk badge ── */
+.risk-block{display:flex;align-items:center;gap:20px;margin-bottom:20px}
+.risk-score-box{border:3px solid ${rc};border-radius:6px;padding:10px 18px;text-align:center;min-width:80px}
+.risk-num{font-size:34px;font-weight:900;color:${rc};line-height:1}
+.risk-denom{font-size:9px;color:${rc};opacity:.6}
+.risk-level-text{font-size:15px;font-weight:800;color:${rc};text-transform:uppercase;letter-spacing:.08em}
+.risk-label-sm{font-size:8.5px;color:#888;text-transform:uppercase;letter-spacing:.08em}
 
-  .content { padding: 0 56px 56px; }
+/* ── scorecard grid ── */
+.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.sc-cell{background:#f6f6f6;border:1px solid #e4e4e4;border-radius:4px;padding:8px 10px}
+.sc-val{font-size:13px;font-weight:800;color:#111}
+.sc-key{font-size:7.5px;text-transform:uppercase;letter-spacing:.07em;color:#888;margin-top:2px}
+.sc-cell.alert .sc-val{color:${rc}}
 
-  .rpt-section { margin-top: 28px; page-break-inside: avoid; }
-  .rpt-section-title {
-    font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-    color: #888; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; margin-bottom: 10px;
-  }
+.flags{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+.flag-chip{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:2px;background:#fef3cd;border:1px solid #f0c040;color:#7a5c00}
 
-  table { width: 100%; border-collapse: collapse; font-size: 10px; }
-  th { text-align: left; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #888; padding: 4px 8px; border-bottom: 1px solid #e0e0e0; }
-  td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
+/* ── content ── */
+.content{padding:0 56px 56px;max-width:900px;margin:0 auto}
 
-  table.kv td.kk { color: #666; width: 160px; flex-shrink: 0; }
+/* ── section ── */
+.sec{margin-top:30px;page-break-inside:avoid}
+.sec-hd{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid #1a1a1a;padding-bottom:5px;margin-bottom:12px}
+.sec-num{font-size:9px;font-weight:800;letter-spacing:.1em;color:#888;min-width:18px}
+.sec-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#1a1a1a}
+.sec-bd{padding-left:28px}
 
-  .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+/* ── sub-label ── */
+.sl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin:12px 0 5px;padding-bottom:3px;border-bottom:1px solid #ececec}
+.sl:first-child{margin-top:0}
 
-  .ioc-section table td { font-size: 10px; }
+/* ── table ── */
+table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:4px}
+th{text-align:left;font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;padding:4px 8px;border-bottom:2px solid #e0e0e0}
+td{padding:5px 8px;border-bottom:1px solid #f2f2f2;vertical-align:top;color:#222}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
 
-  .empty { color: #aaa; font-size: 10px; font-style: italic; padding: 6px 0; }
+/* ── kv table ── */
+table.kv td.k{color:#777;width:145px;white-space:nowrap;font-size:9px}
+table.kv td.v{color:#111;word-break:break-all}
 
-  .flags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-  .flag  { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-           padding: 2px 8px; border-radius: 2px; background: #f0f0f0; border: 1px solid #ddd; color: #555; }
+/* ── findings / recommendations ── */
+.finding-list{list-style:none;padding:0}
+.finding-list li{padding:6px 0 6px 18px;border-bottom:1px solid #f2f2f2;font-size:10px;position:relative}
+.finding-list li::before{content:"▸";position:absolute;left:2px;color:${rc};font-size:10px}
+.finding-list li:last-child{border-bottom:none}
+.rec-list{list-style:none;padding:0;counter-reset:rec}
+.rec-list li{padding:6px 0 6px 22px;border-bottom:1px solid #f2f2f2;font-size:10px;position:relative;counter-increment:rec}
+.rec-list li::before{content:counter(rec);position:absolute;left:2px;background:#1a1a1a;color:#fff;font-size:7px;font-weight:800;width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;top:8px}
+.rec-list li:last-child{border-bottom:none}
 
-  .footer { margin-top: 40px; border-top: 1px solid #e0e0e0; padding-top: 12px;
-            font-size: 9px; color: #aaa; display: flex; justify-content: space-between; }
+/* ── cert bar ── */
+.cert-bar{height:6px;border-radius:3px;background:#eee;margin:6px 0 3px;overflow:hidden}
+.cert-fill{height:100%;border-radius:3px}
 
-  @media print {
-    .no-print { display: none !important; }
-    body { font-size: 10px; }
-    .cover { padding: 32px 40px 24px; }
-    .content { padding: 0 40px 40px; }
-    .rpt-section { page-break-inside: avoid; }
-  }
+/* ── two-col ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 
-  .print-bar {
-    position: fixed; top: 0; left: 0; right: 0;
-    background: #1a1a1a; color: #fff; padding: 10px 20px;
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 12px; z-index: 999;
-  }
-  .print-bar button {
-    background: #fff; color: #1a1a1a; border: none; padding: 6px 16px;
-    border-radius: 3px; font-size: 11px; font-weight: 600; cursor: pointer;
-  }
-  body { padding-top: 42px; }
-  @media print { body { padding-top: 0; } .print-bar { display: none; } }
+/* ── nil ── */
+.nil{font-size:9px;color:#bbb;font-style:italic;padding:4px 0}
+
+/* ── divider ── */
+.divider{border:none;border-top:1px solid #ececec;margin:20px 0}
+
+/* ── footer ── */
+.footer{margin-top:40px;padding-top:10px;border-top:2px solid #1a1a1a;display:flex;justify-content:space-between;font-size:8.5px;color:#999}
+
+/* ── page break ── */
+.page-break{page-break-before:always}
+
+@media print{
+  .sec{page-break-inside:avoid}
+  .cover{page-break-after:always}
+  .content{padding:0 40px 40px}
+}
 </style>
 </head>
 <body>
 
-<div class="print-bar no-print">
-  <span>Threat Intelligence Report — ${h(p.target)}</span>
-  <button onclick="window.print()">Imprimir / Guardar PDF</button>
+<!-- print bar -->
+<div class="pbar no-print">
+  <div class="pbar-info">
+    <span style="font-weight:700">TIR</span>
+    <span style="color:#aaa">|</span>
+    <span>${h(p.target)}</span>
+    <span style="color:#555;font-size:9px">${now}</span>
+  </div>
+  <button onclick="window.print()">⬇ Guardar como PDF</button>
 </div>
 
-<!-- COVER -->
+<!-- ════════════════ COVER PAGE ════════════════ -->
 <div class="cover">
-  <div class="cover-top">
+  <div class="cover-meta">
     <div>
-      <div class="cover-brand">Threat Intelligence Report (TIR)</div>
+      <div class="report-type">Threat Intelligence Report</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <span class="tlp">TLP: ${risk.level === 'CLEAN' ? 'GREEN' : risk.level === 'LOW' ? 'GREEN' : risk.level === 'MEDIUM' ? 'AMBER' : 'RED'}</span>
+        <span style="font-size:8.5px;color:#888">Clasificación basada en nivel de riesgo</span>
+      </div>
     </div>
-    <div class="cover-date">
-      Generado: ${now}<br>
-      Schema: ${h(p.schema_version || '—')}
+    <div class="cover-right">
+      <div>Fecha de emisión: <strong>${now}</strong></div>
+      <div>Schema versión: ${h(p.schema_version||'—')}</div>
+      <div>Plataforma: Threat Intelligence Platform</div>
     </div>
   </div>
+
+  <div class="report-type" style="margin-bottom:6px">Indicador analizado</div>
   <div class="cover-target">${h(p.target)}</div>
-  ${p.original_url && p.original_url !== p.target ? `<div class="cover-orig">URL original: ${h(p.original_url)}</div>` : ''}
+  ${p.original_url && p.original_url !== p.target ? `<div class="cover-orig">URL original: ${h(p.original_url)}</div>` : '<div style="margin-bottom:22px"></div>'}
 
-  <div class="risk-badge">
-    <div class="risk-score">${risk.score ?? '—'}</div>
-    <div class="risk-info">
-      <span class="risk-label">Risk Score</span>
-      <span class="risk-level">${risk.level || '—'}</span>
+  <div class="risk-block">
+    <div class="risk-score-box">
+      <div class="risk-num">${risk.score??'—'}</div>
+      <div class="risk-denom">/100</div>
+    </div>
+    <div>
+      <div class="risk-label-sm">Nivel de riesgo</div>
+      <div class="risk-level-text">${risk.level||'—'}</div>
+      <div style="font-size:9px;color:#666;margin-top:4px;max-width:380px">
+        ${risk.level === 'CRITICAL' ? 'Indicador activamente malicioso confirmado por múltiples fuentes. Acción inmediata requerida.' :
+          risk.level === 'HIGH'     ? 'Alta probabilidad de actividad maliciosa. Se recomienda bloqueo preventivo.' :
+          risk.level === 'MEDIUM'   ? 'Actividad sospechosa detectada. Monitoreo activo recomendado.' :
+          risk.level === 'LOW'      ? 'Riesgo bajo. Sin detecciones significativas.' :
+                                      'Sin detecciones en las fuentes consultadas.'}
+      </div>
     </div>
   </div>
 
-  <div class="summary-grid">
-    <div class="sg-cell">
-      <div class="sg-val">${h(risk.vt_verdict || 'N/A')}</div>
-      <div class="sg-key">VirusTotal</div>
+  <div class="sc-grid">
+    <div class="sc-cell${vt.malicious>0?' alert':''}">
+      <div class="sc-val">${h(risk.vt_verdict||'N/A')}</div><div class="sc-key">VirusTotal</div>
     </div>
-    <div class="sg-cell">
-      <div class="sg-val">${risk.mandiant_mscore != null ? `MScore ${risk.mandiant_mscore}` : h(risk.mandiant_verdict || 'N/A')}</div>
-      <div class="sg-key">Mandiant</div>
+    <div class="sc-cell${man.mscore>=50?' alert':''}">
+      <div class="sc-val">${man.mscore!=null?`MScore ${man.mscore}`:h(risk.mandiant_verdict||'N/A')}</div><div class="sc-key">Mandiant</div>
     </div>
-    <div class="sg-cell">
-      <div class="sg-val">${risk.urlscan_malicious ? '⚠ MALICIOUS' : 'Clean'}</div>
-      <div class="sg-key">URLScan</div>
+    <div class="sc-cell${vs.malicious?' alert':''}">
+      <div class="sc-val">${vs.malicious?'⚠ MALICIOUS':'Clean'}</div><div class="sc-key">URLScan.io</div>
     </div>
-    <div class="sg-cell">
-      <div class="sg-val">${risk.otx_pulses ?? 0}</div>
-      <div class="sg-key">OTX Pulses</div>
+    <div class="sc-cell${risk.otx_pulses>0?' alert':''}">
+      <div class="sc-val">${risk.otx_pulses??0}</div><div class="sc-key">OTX Pulses</div>
     </div>
-    <div class="sg-cell">
-      <div class="sg-val">${risk.urlhaus_hits ?? 0}</div>
-      <div class="sg-key">URLhaus hits</div>
+    <div class="sc-cell${risk.threatfox_hits>0?' alert':''}">
+      <div class="sc-val">${risk.threatfox_hits??0}</div><div class="sc-key">ThreatFox IOCs</div>
     </div>
-    <div class="sg-cell">
-      <div class="sg-val">${risk.threatfox_hits ?? 0}</div>
-      <div class="sg-key">ThreatFox IOCs</div>
+    <div class="sc-cell${risk.urlhaus_hits>0?' alert':''}">
+      <div class="sc-val">${risk.urlhaus_hits??0}</div><div class="sc-key">URLhaus hits</div>
     </div>
-    <div class="sg-cell">
-      <div class="sg-val">${iocs.length}</div>
-      <div class="sg-key">IOCs totales</div>
+    <div class="sc-cell">
+      <div class="sc-val">${iocs.length}</div><div class="sc-key">IOCs totales</div>
     </div>
-    <div class="sg-cell">
-      <div class="sg-val">${risk.mandiant_actors ?? 0} / ${risk.mandiant_malware ?? 0}</div>
-      <div class="sg-key">Actores / Malware</div>
+    <div class="sc-cell${(ht.open_ports||[]).length>0?' alert':''}">
+      <div class="sc-val">${(ht.open_ports||[]).length}</div><div class="sc-key">Puertos abiertos</div>
     </div>
   </div>
 
-  ${risk.geo_flags?.length ? `<div class="flags">${risk.geo_flags.map(f=>`<span class="flag">${h(f)}</span>`).join('')}</div>` : ''}
+  ${riskFlags.length ? `<div class="flags">${riskFlags.map(f=>`<span class="flag-chip">${h(f)}</span>`).join('')}</div>` : ''}
 </div>
 
-<!-- CONTENT -->
+<!-- ════════════════ CONTENT ════════════════ -->
 <div class="content">
 
-  <!-- 1. WHOIS / GEO -->
-  ${section('1. Infraestructura — WHOIS &amp; Geolocalización', `
-    <div class="two-col-grid">
-      <div>
+<!-- 1. RESUMEN EJECUTIVO -->
+${sec('01', 'Resumen Ejecutivo', `
+  <p style="font-size:10.5px;line-height:1.7;margin-bottom:12px">
+    El presente informe documenta el análisis de inteligencia sobre el indicador <strong>${h(p.target)}</strong>,
+    analizado el ${now}. La evaluación integral de ${iocs.length} indicadores de compromiso
+    y la consulta a ${[vt.found,vs.malicious!=null,man.verdict,intel.otx_pulse_count>0,intel.threatfox?.length>0,intel.urlhaus?.length>0].filter(Boolean).length} fuentes
+    de inteligencia determina un nivel de riesgo <strong style="color:${rc}">${risk.level}</strong>
+    con puntuación <strong style="color:${rc}">${risk.score}/100</strong>.
+  </p>
+  ${findings.length ? `
+  <p class="sl">Hallazgos clave</p>
+  <ul class="finding-list">${findings.map(f=>`<li>${f}</li>`).join('')}</ul>` : ''}
+`)}
+
+<!-- 2. EVALUACIÓN DE AMENAZA -->
+${sec('02', 'Evaluación de Amenaza', `
+  <div class="two-col">
+    <div>
+      <p class="sl">VirusTotal</p>
+      ${vt.found ? `
         <table class="kv">
-          ${row('Tipo', whois.type)}
-          ${row('Registrador', whois.registrar)}
-          ${row('Org', whois.registrant_org)}
-          ${row('País WHOIS', whois.registrant_country)}
-          ${row('Creación', (whois.creation_date||'').slice(0,10))}
-          ${row('Expiración', (whois.expiration_date||'').slice(0,10))}
-          ${row('ASN', whois.asn)}
-          ${row('Red CIDR', whois.network_cidr)}
-          ${row('Abuse Contact', whois.abuse_contact)}
-          ${(whois.resolved_ips||[]).length ? `<tr><td class="kk">IPs resueltas</td><td style="font-family:monospace;font-size:10px">${whois.resolved_ips.map(i=>h(i)).join('<br>')}</td></tr>` : ''}
-        </table>
-      </div>
-      <div>
+          ${kv('Veredicto', risk.vt_verdict)}
+          ${kv('Motores maliciosos', vt.malicious)}
+          ${kv('Motores sospechosos', vt.suspicious)}
+          ${kv('Motores limpios', vt.harmless)}
+          ${kv('Reputación', vt.reputation_score)}
+          ${kv('Tags', (vt.tags||[]).join(', '))}
+        </table>` : '<p class="nil">No encontrado en VirusTotal.</p>'}
+    </div>
+    <div>
+      <p class="sl">URLScan.io</p>
+      ${scan.uuid ? `
         <table class="kv">
-          ${row('IP', geo.ip)}
-          ${row('País', geo.country ? `${geo.country_code} — ${geo.country}` : null)}
-          ${row('Región', geo.region)}
-          ${row('Ciudad', geo.city)}
-          ${row('Coordenadas', geo.latitude ? `${geo.latitude}, ${geo.longitude}` : null)}
-          ${row('ISP', geo.isp)}
-          ${row('Org', geo.org)}
-          ${row('ASN', geo.asn)}
-          ${row('Timezone', geo.timezone)}
-        </table>
-      </div>
+          ${kv('Veredicto', vs.malicious ? '⚠ MALICIOUS' : 'Limpio')}
+          ${kv('Score', vs.score)}
+          ${kv('Motores maliciosos', vs.engine_malicious)}
+          ${kv('Servidor', scan.server)}
+          ${kv('Título de página', scan.title)}
+          ${kv('TLS Issuer', scan.tls_issuer)}
+          ${kv('Fecha escaneo', scan.scan_date)}
+        </table>` : '<p class="nil">Sin resultados de URLScan.</p>'}
     </div>
-  `)}
-
-  <!-- 2. VirusTotal -->
-  ${section('2. VirusTotal', vt.found ? `
-    <div class="summary-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:12px">
-      <div class="sg-cell"><div class="sg-val" style="color:#ef4444">${vt.malicious??0}</div><div class="sg-key">Malicioso</div></div>
-      <div class="sg-cell"><div class="sg-val" style="color:#f97316">${vt.suspicious??0}</div><div class="sg-key">Sospechoso</div></div>
-      <div class="sg-cell"><div class="sg-val">${vt.harmless??0}</div><div class="sg-key">Limpio</div></div>
-      <div class="sg-cell"><div class="sg-val">${vt.undetected??0}</div><div class="sg-key">No detectado</div></div>
-      <div class="sg-cell"><div class="sg-val">${vt.reputation_score??'—'}</div><div class="sg-key">Reputación</div></div>
-    </div>
-    ${vtRows.length ? table(['Motor AV', 'Resultado', 'Categoría'], vtRows) : '<p class="empty">Sin detecciones</p>'}
-  ` : '<p class="empty">No encontrado en VirusTotal</p>')}
-
-  <!-- 3. URLScan.io -->
-  ${section('3. URLScan.io', scan.uuid ? `
-    <table class="kv" style="margin-bottom:10px">
-      ${row('Veredicto', vs.malicious ? '⚠ MALICIOUS' : 'Limpio')}
-      ${row('Score', vs.score)}
-      ${row('Motores maliciosos', vs.engine_malicious)}
-      ${row('URL escaneada', scan.url)}
-      ${row('Título', scan.title)}
-      ${row('Servidor', scan.server)}
-      ${row('IP', scan.ip)}
-      ${row('País', scan.country)}
-      ${row('TLS Issuer', scan.tls_issuer)}
-      ${row('Fecha escaneo', scan.scan_date)}
-      ${row('UUID', scan.uuid)}
-    </table>
-  ` : '<p class="empty">Sin resultados URLScan</p>')}
-
-  <!-- 4. Mandiant -->
-  ${section('4. Mandiant Threat Intelligence', man.verdict && man.verdict !== 'NOT_FOUND' ? `
-    <table class="kv" style="margin-bottom:10px">
-      ${row('Veredicto', man.verdict)}
-      ${row('MScore', man.mscore)}
-      ${row('Primera detección', (man.first_seen||'').slice(0,10))}
-      ${row('Última detección', (man.last_seen||'').slice(0,10))}
-    </table>
-    ${(man.threat_actors||[]).length ? `
-      <div style="margin-top:8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:4px">Actores de Amenaza</div>
-      ${table(['Nombre','País','Motivación','Industrias'],
-        man.threat_actors.map(a=>`<tr><td>${h(a.name)}</td><td>${h(a.country||'—')}</td><td>${h(a.motivation||'—')}</td><td>${(a.industries||[]).join(', ')||'—'}</td></tr>`)
-      )}` : ''}
-    ${(man.malware||[]).length ? `
-      <div style="margin-top:8px;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:4px">Familias de Malware</div>
-      ${table(['Nombre','Aliases','Capacidades'],
-        man.malware.map(m2=>`<tr><td>${h(m2.name)}</td><td>${(m2.aliases||[]).join(', ')||'—'}</td><td>${(m2.capabilities||[]).slice(0,4).join(', ')||'—'}</td></tr>`)
-      )}` : ''}
-  ` : `<p class="empty">${man.verdict === 'NOT_FOUND' ? 'Indicador no encontrado en Mandiant' : 'Sin datos Mandiant'}</p>`)}
-
-  <!-- 5. Threat Intelligence Feeds -->
-  ${section('5. Threat Intelligence Feeds', `
-    ${(intel.otx_pulses||[]).length ? `
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:4px">AlienVault OTX — ${intel.otx_pulse_count} pulses</div>
-      ${table(['Nombre','Autor','Familias malware','ATT&CK'], otxRows)}
-    ` : ''}
-    ${(intel.threatfox||[]).length ? `
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin:10px 0 4px">ThreatFox — ${intel.threatfox.length} IOCs</div>
-      ${table(['IOC','Malware','Confianza','Visto'], tfRows)}
-    ` : ''}
-    ${(intel.urlhaus||[]).length ? `
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin:10px 0 4px">URLhaus — ${intel.urlhaus.length} URLs</div>
-      ${table(['URL','Estado','Tipo'], uhRows)}
-    ` : ''}
-    ${!intel.otx_pulses?.length && !intel.threatfox?.length && !intel.urlhaus?.length ? '<p class="empty">Sin detecciones en feeds públicos</p>' : ''}
-  `)}
-
-  <!-- 6. IOCs -->
-  ${section('6. Indicadores de Compromiso (IOCs)', `
-    <div class="ioc-section">
-      ${table(['','Tipo','Valor','Fuente','Contexto'], iocRows)}
-    </div>
-  `)}
-
-  <!-- 7. Graph -->
-  ${p.graph_png_url ? section('7. Diagrama de Relaciones', `
-    <img src="${h(p.graph_png_url)}" style="width:100%;max-width:700px;border:1px solid #e0e0e0;border-radius:4px;margin-top:4px">
-  `) : ''}
-
-  <div class="footer">
-    <span>Threat Intelligence Platform — Informe TIR generado automáticamente</span>
-    <span>${now}</span>
   </div>
+  ${vtRows.length ? `<p class="sl">Detecciones VirusTotal (${vtRows.length} motores)</p>${tbl(['Motor AV','Firma detectada','Categoría'], vtRows)}` : ''}
+`)}
+
+<!-- 3. INTELIGENCIA DE AMENAZAS -->
+${sec('03', 'Inteligencia de Amenazas', `
+  <div class="two-col" style="margin-bottom:14px">
+    <div>
+      <p class="sl">Mandiant Threat Intelligence</p>
+      ${man.verdict && man.verdict !== 'NOT_FOUND' ? `
+        <table class="kv">
+          ${kv('Veredicto', man.verdict)}
+          ${kv('MScore', man.mscore != null ? `${man.mscore} / 100` : null)}
+          ${kv('Primera detección', (man.first_seen||'').slice(0,10))}
+          ${kv('Última detección',  (man.last_seen||'').slice(0,10))}
+          ${kv('Actores asociados', man.threat_actors?.length || 0)}
+          ${kv('Familias malware',  man.malware?.length || 0)}
+        </table>
+        ${(man.threat_actors||[]).length ? tbl(['Actor','País','Motivación','Sectores'], man.threat_actors.map(a=>`<tr><td><strong>${h(a.name)}</strong></td><td>${h(a.country||'—')}</td><td>${h(a.motivation||'—')}</td><td style="font-size:8.5px">${(a.industries||[]).join(', ')||'—'}</td></tr>`)) : ''}
+        ${(man.malware||[]).length ? tbl(['Malware','Aliases','Capacidades'], man.malware.map(m2=>`<tr><td>${chip(m2.name,'#c0392b')}</td><td style="font-size:8.5px">${(m2.aliases||[]).join(', ')||'—'}</td><td style="font-size:8.5px">${(m2.capabilities||[]).slice(0,4).join(', ')||'—'}</td></tr>`)) : ''}
+      ` : '<p class="nil">Indicador no encontrado en Mandiant Threat Intelligence.</p>'}
+    </div>
+    <div>
+      <p class="sl">AlienVault OTX</p>
+      ${intel.otx_pulse_count > 0 ? `
+        <table class="kv">
+          ${kv('Pulses totales', intel.otx_pulse_count)}
+          ${kv('Reputación OTX', intel.otx_reputation)}
+          ${kv('Muestras malware', intel.otx_malware_count)}
+        </table>` : '<p class="nil">Sin pulses OTX.</p>'}
+    </div>
+  </div>
+  ${otxRows.length ? `<p class="sl">Pulses OTX</p>${tbl(['Nombre','Autor','Familias','ATT&CK'], otxRows)}` : ''}
+  ${tfRows.length ? `<p class="sl">ThreatFox — ${tfRows.length} IOC(s)</p>${tbl(['IOC','Malware','Confianza','Primer registro'], tfRows)}` : ''}
+  ${uhRows.length ? `<p class="sl">URLhaus — ${uhRows.length} URL(s)</p>${tbl(['URL','Estado','Tipo amenaza'], uhRows)}` : ''}
+  ${!otxRows.length && !tfRows.length && !uhRows.length ? '<p class="nil">Sin detecciones en feeds de inteligencia pública.</p>' : ''}
+`)}
+
+<!-- 4. INFRAESTRUCTURA -->
+${sec('04', 'Análisis de Infraestructura', `
+  <div class="two-col">
+    <div>
+      <p class="sl">WHOIS / DNS</p>
+      <table class="kv">
+        ${kv('Tipo', whois.type)}
+        ${kv('Registrador', whois.registrar)}
+        ${kv('Organización', whois.registrant_org)}
+        ${kv('País registrante', whois.registrant_country)}
+        ${kv('Fecha creación', (whois.creation_date||'').slice(0,10))}
+        ${kv('Fecha expiración', (whois.expiration_date||'').slice(0,10))}
+        ${kv('ASN', whois.asn)}
+        ${kv('Red CIDR', whois.network_cidr)}
+        ${kv('Contacto de abuso', whois.abuse_contact)}
+        ${(whois.resolved_ips||[]).length ? `<tr><td class="k">IPs resueltas</td><td class="v" style="font-family:monospace;font-size:9px">${whois.resolved_ips.map(i=>h(i)).join('<br>')}</td></tr>` : ''}
+      </table>
+    </div>
+    <div>
+      <p class="sl">Geolocalización</p>
+      <table class="kv">
+        ${kv('IP analizada', geo.ip)}
+        ${kv('País', geo.country ? `${geo.country_code} — ${geo.country}` : null)}
+        ${kv('Región / Ciudad', geo.region ? `${geo.region}, ${geo.city||''}` : null)}
+        ${kv('ISP', geo.isp)}
+        ${kv('Organización', geo.org)}
+        ${kv('ASN', geo.asn)}
+        ${kv('Coordenadas', geo.latitude ? `${geo.latitude}, ${geo.longitude}` : null)}
+        ${kv('Zona horaria', geo.timezone)}
+      </table>
+      ${riskFlags.length ? `<div class="flags" style="margin-top:8px">${riskFlags.map(f=>`<span class="flag-chip">${h(f)}</span>`).join('')}</div>` : ''}
+    </div>
+  </div>
+`)}
+
+<!-- 5. HOST TRACKER -->
+${sec('05', 'Estado del Host', `
+  <div class="two-col">
+    <div>
+      <p class="sl">Certificado TLS</p>
+      ${ht.certificate && !ht.certificate.error ? `
+        ${(() => {
+          const d = ht.certificate.days_remaining;
+          const pct = Math.max(0, Math.min(100, d / 365 * 100));
+          const barColor = d < 0 ? '#c0392b' : d <= 30 ? '#d35400' : '#27ae60';
+          return `
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px">
+              <span>Días restantes</span>
+              <strong style="color:${barColor}">${d < 0 ? 'EXPIRADO' : d + ' días'}</strong>
+            </div>
+            <div class="cert-bar"><div class="cert-fill" style="width:${pct}%;background:${barColor}"></div></div>
+          </div>`;
+        })()}
+        <table class="kv">
+          ${kv('Estado', ht.certificate.expired ? '❌ Expirado' : ht.certificate.expiring_soon ? '⚠ Próximo a vencer' : '✓ Válido')}
+          ${kv('Subject CN', ht.certificate.subject_cn)}
+          ${kv('Emisor', ht.certificate.issuer_org || ht.certificate.issuer_cn)}
+          ${kv('Válido desde', ht.certificate.not_before?.slice(0,10))}
+          ${kv('Expira', ht.certificate.not_after?.slice(0,10))}
+          ${kv('Versión TLS', ht.certificate.tls_version)}
+          ${kv('Cipher', ht.certificate.cipher)}
+        </table>
+        ${(ht.certificate.sans||[]).length ? `<p style="font-size:8.5px;color:#888;margin-top:6px">SANs: ${ht.certificate.sans.map(s=>h(s)).join(', ')}</p>` : ''}
+      ` : `<p class="nil">${h(ht.certificate?.error || 'No disponible')}</p>`}
+    </div>
+    <div>
+      <p class="sl">Puertos abiertos (${(ht.open_ports||[]).length} detectados)</p>
+      ${portRows.length ? tbl(['Puerto','Servicio','Banner','Riesgo'], portRows) : '<p class="nil">Sin puertos abiertos en el rango escaneado.</p>'}
+    </div>
+  </div>
+`)}
+
+<!-- 6. IOCs -->
+${sec('06', `Indicadores de Compromiso (IOCs) — ${iocs.length} indicadores`, `
+  ${iocRows.length ? tbl(['','Tipo','Valor / Hash','Fuente','Contexto'], iocRows) : '<p class="nil">Sin IOCs registrados.</p>'}
+`)}
+
+<!-- 7. RELACIONES -->
+${p.graph_png_url ? sec('07', 'Diagrama de Relaciones', `
+  <img src="${h(p.graph_png_url)}" style="width:100%;max-width:760px;border:1px solid #ddd;border-radius:4px;margin-top:6px;display:block">
+`) : ''}
+
+<!-- 8. RECOMENDACIONES -->
+${sec(p.graph_png_url ? '08' : '07', 'Recomendaciones', `
+  <ol class="rec-list">${recs.map(r=>`<li>${r}</li>`).join('')}</ol>
+`)}
+
+<hr class="divider">
+<div class="footer">
+  <span>Threat Intelligence Report — Generado automáticamente · Clasificación: TLP ${risk.level === 'CLEAN' || risk.level === 'LOW' ? 'GREEN' : risk.level === 'MEDIUM' ? 'AMBER' : 'RED'}</span>
+  <span>${now}</span>
+</div>
 </div>
 </body>
 </html>`;
