@@ -857,14 +857,20 @@ function urlscanEl(us) {
     rpt.textContent = 'Ver reporte completo ↗';
     acts.appendChild(rpt);
 
-    if (us.screenshot_url) {
-      const ss  = el('a','btn-ghost');
-      ss.href   = us.screenshot_url;
-      ss.target = '_blank';
-      ss.textContent = 'Screenshot ↗';
-      acts.appendChild(ss);
-    }
     bd.appendChild(acts);
+
+    if (us.screenshot_url) {
+      label(bd, 'Screenshot');
+      const wrap = el('div', 'urlscan-screenshot-wrap');
+      const img  = document.createElement('img');
+      img.src    = us.screenshot_url;
+      img.alt    = 'URLScan screenshot';
+      img.className = 'urlscan-screenshot';
+      img.loading = 'lazy';
+      img.onclick = () => window.open(us.screenshot_url, '_blank');
+      wrap.appendChild(img);
+      bd.appendChild(wrap);
+    }
   }
 
   // Resultados previos (historial)
