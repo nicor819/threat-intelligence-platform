@@ -242,6 +242,127 @@ def report_config():
     })
 
 
+@app.route("/ai/analyze", methods=["POST"])
+def ai_analyze():
+    data    = request.json or {}
+    profile = data.get("profile", {})
+    if not profile:
+        return jsonify({"error": "Perfil requerido"}), 400
+    cfg     = load_cfg()
+    api_key = cfg.get("api_keys", {}).get("gemini", "") or os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "API key de Gemini no configurada. Añádela en config.yaml → api_keys.gemini (gratis en https://aistudio.google.com/apikey)"}), 400
+    try:
+        analysis = _call_gemini(_build_ai_prompt(profile), api_key)
+        return jsonify({"analysis": analysis})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+def _build_ai_prompt(p: dict) -> str:
+    risk  = p.get("risk_summary", {})
+    vt    = p.get("virustotal", {})
+    geo   = p.get("geolocation", {})
+    whois = p.get("whois", {})
+    man   = p.get("mandiant", {})
+    intel = p.get("threat_intelligence", {})
+    iocs  = p.get("iocs", [])
+    ht    = p.get("host_tracker", {})
+    pl    = p.get("phishlabs", {})
+    us    = p.get("urlscan", {})
+    vs    = (us.get("verdicts") or {})
+
+    lines = [
+        "Eres un analista senior de ciberinteligencia. Analiza el siguiente perfil de amenaza y genera un informe técnico profesional en español.",
+        "",
+        f"## INDICADOR ANALIZADO: {p.get('target', '?')}",
+        f"- URL original: {p.get('original_url', p.get('target', ''))}",
+        f"- Fecha de análisis: {str(p.get('generated_at', ''))[:16]}",
+        "",
+        "## RESUMEN DE RIESGO",
+        f"- Score integral: {risk.get('score', '?')}/100",
+        f"- Nivel: {risk.get('level', '?')}",
+        f"- VirusTotal: {risk.get('vt_verdict', '?')} ({vt.get('malicious', 0)} motores maliciosos, {vt.get('suspicious', 0)} sospechosos)",
+        f"- URLScan.io: {'MALICIOSO' if vs.get('malicious') else 'Limpio'} (score {vs.get('score', '?')}/100)",
+        f"- Mandiant MScore: {man.get('mscore', 'N/A')} — {man.get('verdict', 'N/A')}",
+        f"- OTX Pulses: {risk.get('otx_pulses', 0)}",
+        f"- ThreatFox IOCs: {risk.get('threatfox_hits', 0)}",
+        f"- URLhaus hits: {risk.get('urlhaus_hits', 0)}",
+        f"- Casos Fortra: {len(pl.get('cases', []))}",
+    ]
+
+    if man.get("threat_actors"):
+        lines.append("- Actores de amenaza (Mandiant): " + ", ".join(a.get("name","") for a in man["threat_actors"][:3]))
+    if man.get("malware"):
+        lines.append("- Malware asociado: " + ", ".join(m.get("name","") for m in man["malware"][:3]))
+
+    lines += [
+        "",
+        "## INFRAESTRUCTURA",
+        f"- País: {geo.get('country_code','?')} — {geo.get('country','?')}",
+        f"- Ciudad / Región: {geo.get('city','?')}, {geo.get('region','?')}",
+        f"- ISP: {geo.get('isp','?')}",
+        f"- ASN: {geo.get('asn', whois.get('asn','?'))}",
+        f"- Flags de riesgo: {', '.join(risk.get('geo_flags', [])) or 'Ninguna'}",
+        f"- Registrador: {whois.get('registrar','?')}",
+        f"- Fecha de creación del dominio: {str(whois.get('creation_date',''))[:10] or '?'}",
+        f"- Fecha de expiración: {str(whois.get('expiration_date',''))[:10] or '?'}",
+    ]
+
+    ports = ht.get("open_ports", [])
+    if ports:
+        lines.append("- Puertos abiertos: " + ", ".join(f"{pp['port']}/{pp.get('service','?')}" for pp in ports[:8]))
+
+    cert = ht.get("certificate", {})
+    if cert and not cert.get("error"):
+        lines.append(f"- TLS: {'EXPIRADO' if cert.get('expired') else 'Válido'} — Emisor: {cert.get('issuer_org', cert.get('issuer_cn','?'))}")
+
+    if iocs:
+        lines += ["", f"## IOCs DETECTADOS ({len(iocs)} total, muestra)"]
+        for ioc in iocs[:12]:
+            lines.append(f"- [{ioc.get('type','?')}] {ioc.get('value','?')} — {ioc.get('source','')}: {ioc.get('context','')}")
+
+    if vt.get("detections"):
+        lines += ["", "## DETECCIONES VIRUSTOTAL (muestra)"]
+        for d in vt["detections"][:6]:
+            lines.append(f"- {d.get('engine')}: {d.get('result','?')} ({d.get('category','')})")
+
+    if intel.get("otx_pulses"):
+        lines += ["", "## PULSES OTX (muestra)"]
+        for pp in intel["otx_pulses"][:3]:
+            fams = ", ".join(pp.get("malware_families", [])[:3])
+            lines.append(f"- {pp.get('name','?')}{' — ' + fams if fams else ''}")
+
+    lines += [
+        "",
+        "---",
+        "Con base en estos datos, genera el siguiente informe estructurado en español (formato Markdown):",
+        "",
+        "### 1. Resumen Ejecutivo",
+        "### 2. Clasificación de la Amenaza",
+        "### 3. Hallazgos Técnicos Clave",
+        "### 4. Perfil de Infraestructura del Actor",
+        "### 5. Recomendaciones de Mitigación",
+        "",
+        "Sé conciso, técnico y profesional. Usa terminología de ciberseguridad apropiada. No repitas datos literales del input — interprétalos.",
+    ]
+    return "\n".join(lines)
+
+
+def _call_gemini(prompt: str, api_key: str) -> str:
+    import requests as _req
+    url  = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2048},
+    }
+    r = _req.post(url, json=body, timeout=60)
+    if r.status_code != 200:
+        err = r.json().get("error", {}).get("message", f"HTTP {r.status_code}")
+        raise Exception(err)
+    return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
+
 @app.route("/history")
 def get_history():
     return jsonify(_load_history())

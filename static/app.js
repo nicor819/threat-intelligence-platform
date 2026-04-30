@@ -365,6 +365,10 @@ function riskHeaderEl(p) {
         : ''}
     </div>
     <div class="risk-actions">
+      <button class="btn-ai-analyze" id="btn-ai-main" onclick="generateAIAnalysis(window._currentProfile)" title="Generar análisis con IA (Gemini)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Análisis IA
+      </button>
       <button class="btn-reanalyze" onclick="reanalyzeTarget(window._currentProfile)" title="Volver a analizar este indicador">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         Reanalizar
@@ -1853,6 +1857,75 @@ ${sec(p.graph_png_url ? '08' : '07', 'Recomendaciones', `
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar TIR';
     }
   }
+}
+
+// ── Análisis IA (Gemini) ──────────────────────────────────────────────────────
+async function generateAIAnalysis(p) {
+  if (!p) return;
+  const btn = document.getElementById('btn-ai-main');
+
+  // Si ya fue generado, solo hacer scroll a la sección
+  if (p._ai_analysis) {
+    document.getElementById('ai-section')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Generando…`; }
+
+  // Insertar sección placeholder
+  let aiSec = document.getElementById('ai-section');
+  if (!aiSec) {
+    aiSec = aiSectionEl();
+    platMain.insertBefore(aiSec, platMain.firstChild.nextSibling); // después del risk header
+  }
+  const aiBody = aiSec.querySelector('.ai-body');
+  aiBody.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div><span>Analizando con Gemini 2.0 Flash…</span></div>`;
+
+  try {
+    const res  = await fetch('/ai/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: p }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'Error desconocido');
+
+    p._ai_analysis = data.analysis;
+    renderAIAnalysis(aiBody, data.analysis);
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Ver análisis IA`; }
+  } catch (e) {
+    aiBody.innerHTML = `<p style="color:var(--risk-crit);font-size:.82rem;padding:.5rem 0">${esc(e.message)}</p>`;
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Análisis IA`; }
+  }
+}
+
+function aiSectionEl() {
+  const wrap = el('div', 'ai-section fade-in');
+  wrap.id = 'ai-section';
+  wrap.innerHTML = `
+    <div class="ai-header">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      <span>Análisis de Inteligencia — Gemini 2.0 Flash</span>
+      <span class="ai-badge">IA</span>
+    </div>
+    <div class="ai-body"></div>`;
+  return wrap;
+}
+
+function renderAIAnalysis(container, markdown) {
+  // Convertir Markdown básico a HTML
+  const html = markdown
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h4 class="ai-h4">$1</h4>')
+    .replace(/^## (.+)$/gm,  '<h3 class="ai-h3">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,   '<em>$1</em>')
+    .replace(/^- (.+)$/gm,   '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul class="ai-list">${m}</ul>`)
+    .replace(/\n\n/g, '</p><p class="ai-p">')
+    .replace(/^(?!<[hul])(.+)$/gm, '<p class="ai-p">$1</p>')
+    .replace(/<p class="ai-p"><\/p>/g, '');
+  container.innerHTML = `<div class="ai-content">${html}</div>`;
 }
 
 // ── Reanalizar ────────────────────────────────────────────────────────────────
