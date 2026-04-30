@@ -14,13 +14,12 @@ def _result(ok: bool, msg: str) -> dict:
 
 def report_google_safebrowsing(url: str) -> dict:
     try:
-        r = requests.get(
+        r = requests.post(
             "https://safebrowsing.google.com/safebrowsing/report_phish/",
-            params={"hl": "es", "url": url},
+            data={"hl": "es", "url": url},
             timeout=10,
-            verify=False,
         )
-        if r.status_code == 200:
+        if r.status_code in (200, 204):
             return _result(True, "Reporte enviado a Google Safe Browsing.")
         return _result(False, f"Código {r.status_code}")
     except Exception as e:
@@ -72,11 +71,12 @@ def report_urlhaus(url: str) -> dict:
 def report_smartscreen(url: str) -> dict:
     try:
         r = requests.post(
-            "https://feedback.smartscreen.microsoft.com/feedback.aspx",
-            data={"product": "DefenderEdge", "formName": "Phishing", "url": url},
+            "https://www.microsoft.com/en-us/wdsi/support/report-unsafe-site-guest",
+            json={"url": url, "locale": "en-US"},
+            headers={"Content-Type": "application/json"},
             timeout=10,
         )
-        if r.status_code == 200:
+        if r.status_code in (200, 201, 204):
             return _result(True, "Reporte enviado a Microsoft SmartScreen.")
         return _result(False, f"Código {r.status_code}")
     except Exception as e:
@@ -97,7 +97,7 @@ def report_phishreport(url: str) -> dict:
             headers=headers,
             timeout=10,
         )
-        if r.status_code == 200:
+        if r.status_code in (200, 201):
             data = r.json()
             return _result(True, f"Phish Report ID: {data.get('id', 'N/A')}. Resuelto: {'Sí' if data.get('resolved') else 'No'}")
         return _result(False, f"Código {r.status_code}: {r.text[:120]}")

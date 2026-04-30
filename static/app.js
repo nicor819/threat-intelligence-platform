@@ -367,14 +367,24 @@ function riskHeaderEl(p) {
         ? `<div class="flag-row">${risk.geo_flags.map(f => `<span class="flag-pill">${f}</span>`).join('')}</div>`
         : ''}
     </div>
-    <button class="btn-tir" id="btn-tir-main" onclick="downloadReport(window._currentProfile)" title="Descargar Threat Intelligence Report">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Descargar TIR
-    </button>
-    <a class="btn-whatsapp" href="https://wa.me/573008876817?text=${encodeURIComponent('Hola, quisiera más información sobre este sitio analizado: ' + (p.original_url || p.target))}" target="_blank" title="Consultar con Mensaje Sospechoso">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-      Mensaje Sospechoso
-    </a>`;
+    <div class="risk-actions">
+      <button class="btn-reanalyze" onclick="reanalyzeTarget(window._currentProfile)" title="Volver a analizar este indicador">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Reanalizar
+      </button>
+      <button class="btn-report-open" onclick="openReportModal(window._currentProfile)" title="Reportar esta URL a plataformas de seguridad">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Reportar URL
+      </button>
+      <button class="btn-tir" id="btn-tir-main" onclick="downloadReport(window._currentProfile)" title="Descargar Threat Intelligence Report">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar TIR
+      </button>
+      <a class="btn-whatsapp" href="https://wa.me/573008876817?text=${encodeURIComponent('Hola, quisiera más información sobre este sitio analizado: ' + (p.original_url || p.target))}" target="_blank" title="Consultar con Mensaje Sospechoso">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+        Mensaje Sospechoso
+      </a>
+    </div>`;
   return d;
 }
 
@@ -1837,6 +1847,145 @@ ${sec(p.graph_png_url ? '08' : '07', 'Recomendaciones', `
       btn.disabled = false;
       btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar TIR';
     }
+  }
+}
+
+// ── Reanalizar ────────────────────────────────────────────────────────────────
+function reanalyzeTarget(p) {
+  if (!p) return;
+  const target = p.original_url || p.target;
+  submitTarget(target);
+}
+
+// ── Modal de reporte ──────────────────────────────────────────────────────────
+function openReportModal(p) {
+  if (!p) return;
+  const targetUrl = p.original_url || p.target;
+
+  // Overlay
+  const overlay = el('div', 'modal-overlay');
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+  const box = el('div', 'modal-box');
+
+  // Header
+  const hdr = el('div', 'modal-hdr');
+  hdr.innerHTML = `
+    <div class="modal-hdr-left">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <span>Reportar URL</span>
+    </div>
+    <div class="modal-url">${esc(truncate(targetUrl, 60))}</div>
+    <button class="modal-close" title="Cerrar">&times;</button>`;
+  hdr.querySelector('.modal-close').addEventListener('click', closeModal);
+
+  // Body
+  const body = el('div', 'modal-body');
+
+  // ── Reporte rápido ──
+  const secRapido = el('div', 'modal-section');
+  secRapido.innerHTML = `<div class="modal-sec-label">Reporte rápido</div>`;
+  const services = [
+    { id: 'google_sb',   label: 'Google Safe Browsing', icon: '🔵' },
+    { id: 'netcraft',    label: 'Netcraft',              icon: '🟠' },
+    { id: 'urlhaus',     label: 'URLhaus',               icon: '🟣' },
+    { id: 'smartscreen', label: 'Microsoft SmartScreen', icon: '🔷' },
+    { id: 'phishreport', label: 'Phish Report',          icon: '🔴' },
+  ];
+  const btnGrid = el('div', 'modal-btn-grid');
+  services.forEach(svc => {
+    const btn = el('button', 'modal-report-btn');
+    const dot = el('span', 'report-status');
+    btn.innerHTML = `<span class="report-icon">${svc.icon}</span><span>${svc.label}</span>`;
+    btn.appendChild(dot);
+    btn.onclick = async () => {
+      btn.disabled = true;
+      dot.className = 'report-status spinning';
+      try {
+        const r    = await fetch('/report', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ service: svc.id, url: targetUrl }) });
+        const data = await r.json();
+        dot.className = `report-status ${data.ok ? 'ok' : 'fail'}`;
+        dot.title     = data.message;
+        btn.title     = data.message;
+        if (data.ok) btn.classList.add('reported');
+      } catch(e) {
+        dot.className = 'report-status fail';
+        dot.title = e.message;
+      }
+      btn.disabled = false;
+    };
+    btnGrid.appendChild(btn);
+  });
+  secRapido.appendChild(btnGrid);
+  body.appendChild(secRapido);
+
+  // ── Crear caso Fortra ──
+  const secFortra = el('div', 'modal-section');
+  secFortra.innerHTML = `<div class="modal-sec-label">Crear caso en Fortra</div>`;
+
+  fetch('/report/config').then(r => r.json()).then(cfg => {
+    const row = el('div', 'modal-fortra-row');
+
+    const brandSel = document.createElement('select');
+    brandSel.className = 'pl-select';
+    cfg.brands.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b; opt.textContent = b;
+      brandSel.appendChild(opt);
+    });
+
+    const typeSel = document.createElement('select');
+    typeSel.className = 'pl-select';
+    cfg.case_types.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      typeSel.appendChild(opt);
+    });
+
+    const createBtn = el('button', 'btn-report btn-report-create');
+    createBtn.innerHTML = `<span class="report-icon">🚨</span><span>Crear caso</span>`;
+    const createDot = el('span', 'report-status');
+    createBtn.appendChild(createDot);
+
+    const msg = el('div', 'pl-result-msg');
+    msg.style.marginTop = '.5rem';
+
+    createBtn.onclick = async () => {
+      createBtn.disabled = true;
+      createDot.className = 'report-status spinning';
+      msg.textContent = '';
+      try {
+        const r    = await fetch('/report/phishlabs_case', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ url: targetUrl, brand: brandSel.value, case_type: typeSel.value }) });
+        const data = await r.json();
+        createDot.className = `report-status ${data.ok ? 'ok' : 'fail'}`;
+        msg.textContent     = data.message;
+        msg.style.color     = data.ok ? 'var(--risk-clean)' : 'var(--risk-crit)';
+        if (data.ok) createBtn.classList.add('reported');
+      } catch(e) {
+        createDot.className = 'report-status fail';
+        msg.textContent = e.message;
+      }
+      createBtn.disabled = false;
+    };
+
+    row.appendChild(brandSel);
+    row.appendChild(typeSel);
+    row.appendChild(createBtn);
+    secFortra.appendChild(row);
+    secFortra.appendChild(msg);
+  });
+  body.appendChild(secFortra);
+
+  box.appendChild(hdr);
+  box.appendChild(body);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  function closeModal() {
+    overlay.classList.remove('visible');
+    overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
   }
 }
 
