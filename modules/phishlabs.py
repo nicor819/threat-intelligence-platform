@@ -1,13 +1,12 @@
 import requests
-from datetime import datetime, timedelta, timezone
 
 
 class PhishLabsClient:
     """Busca casos en PhishLabs (Case Data API) relacionados con un target."""
 
-    DATA_URL   = "https://api.phishlabs.com/pdapi/cases"
-    MAX_PAGES  = 5    # 5 × 200 = 1000 casos más recientes
-    PAGE_SIZE  = 200
+    DATA_URL  = "https://api.phishlabs.com/pdapi/cases"
+    MAX_PAGES = 5    # 5 × 200 = 1000 casos más recientes
+    PAGE_SIZE = 200
 
     def __init__(self, username: str, password: str):
         self.auth = (username, password) if username and password else None
@@ -16,24 +15,15 @@ class PhishLabsClient:
         if not self.auth:
             return {"error": "Credenciales PhishLabs no configuradas", "cases": [], "total_searched": 0}
 
-        # Normalizar target: extraer dominio base
         domain = target.lower().strip().lstrip("www.")
 
-        date_begin = (datetime.now(timezone.utc) - timedelta(days=730)).strftime("%Y-%m-%dT00:00:00Z")
-        date_end   = datetime.now(timezone.utc).strftime("%Y-%m-%dT23:59:59Z")
-
-        matches   = []
+        matches        = []
         total_searched = 0
 
         for page in range(self.MAX_PAGES):
-            offset = page * self.PAGE_SIZE
             payload = {
                 "maxRecords": self.PAGE_SIZE,
-                "offset":     offset,
-                "dateField":  "caseOpen",
-                "dateBegin":  date_begin,
-                "dateEnd":    date_end,
-                "format":     "json",
+                "offset":     page * self.PAGE_SIZE,
             }
             try:
                 resp = requests.post(
@@ -54,7 +44,6 @@ class PhishLabsClient:
                 if self._matches(case, domain, target):
                     matches.append(self._summarize(case, domain))
 
-            # Si no hay más páginas
             if len(cases) < self.PAGE_SIZE:
                 break
 
