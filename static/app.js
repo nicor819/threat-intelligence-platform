@@ -1862,7 +1862,12 @@ async function generateAIAnalysis(p) {
 
   // Si ya fue generado, descargar PDF directamente
   if (p._ai_analysis) {
-    await downloadAIReport(p, p._ai_analysis);
+    try {
+      await downloadAIReport(p, p._ai_analysis);
+    } catch (pdfErr) {
+      console.error('[downloadAIReport] Error:', pdfErr);
+      showPdfError(pdfErr.message);
+    }
     return;
   }
 
@@ -1889,12 +1894,18 @@ async function generateAIAnalysis(p) {
     p._ai_analysis = data.analysis;
     renderAIAnalysis(aiBody, data.analysis);
     if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Análisis IA`; }
-
-    // Descargar PDF con el informe generado por IA
-    await downloadAIReport(p, data.analysis);
   } catch (e) {
     aiBody.innerHTML = `<p style="color:var(--risk-crit);font-size:.82rem;padding:.5rem 0">${esc(e.message)}</p>`;
     if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Análisis IA`; }
+    return;
+  }
+
+  // Descarga PDF — try/catch separado para no pisar el análisis IA en pantalla
+  try {
+    await downloadAIReport(p, p._ai_analysis);
+  } catch (pdfErr) {
+    console.error('[downloadAIReport] Error:', pdfErr);
+    showPdfError(pdfErr.message);
   }
 }
 
@@ -2186,16 +2197,19 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   iframe.style.cssText = 'position:fixed;top:0;left:-900px;width:816px;height:20000px;border:none;z-index:9998;background:#fff';
   document.body.appendChild(iframe);
   try {
+    if (!iframe.contentDocument) throw new Error('No se pudo acceder al iframe (contentDocument es null)');
     iframe.contentDocument.open();
     iframe.contentDocument.write(html);
     iframe.contentDocument.close();
-    await new Promise(r => setTimeout(r, 1400));
-    const body = iframe.contentDocument.body;
-    const docEl = iframe.contentDocument.documentElement;
-    const contentH = Math.max(body.scrollHeight, docEl.scrollHeight, 1056);
+    await new Promise(r => setTimeout(r, 1600));
+    const iBody = iframe.contentDocument.body;
+    const iDoc  = iframe.contentDocument.documentElement;
+    if (!iBody) throw new Error('iframe.body es null tras escribir el HTML');
+    const contentH = Math.max(iBody.scrollHeight, iDoc.scrollHeight, 1056);
     iframe.style.height = contentH + 'px';
-    body.style.cssText = 'width:816px;min-width:816px;overflow-x:hidden';
-    await new Promise(r => setTimeout(r, 200));
+    iBody.style.cssText = 'width:816px;min-width:816px;overflow-x:hidden';
+    await new Promise(r => setTimeout(r, 300));
+    if (typeof html2pdf !== 'function') throw new Error('Librería html2pdf no cargada');
     await html2pdf().set({
       margin: 0,
       filename: `TIR-IA-${p.target.replace(/[^a-z0-9]/gi,'_')}.pdf`,
@@ -2213,11 +2227,19 @@ table.kv td.v{color:#0f172a;word-break:break-all}
       },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: ['.sec', 'tr'] },
-    }).from(body).save();
+    }).from(iBody).save();
   } finally {
-    document.body.removeChild(iframe);
-    document.body.removeChild(overlay);
+    if (document.body.contains(iframe))  document.body.removeChild(iframe);
+    if (document.body.contains(overlay)) document.body.removeChild(overlay);
   }
+}
+
+function showPdfError(msg) {
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid #c0392b;color:#f87171;padding:12px 18px;border-radius:6px;font-size:12px;font-family:monospace;z-index:9999;max-width:360px;line-height:1.5';
+  toast.innerHTML = `<strong style="display:block;margin-bottom:4px">Error generando PDF</strong>${esc(msg)}<br><span style="font-size:10px;color:#64748b;margin-top:4px;display:block">Revisa la consola del navegador (F12) para más detalles.</span>`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 8000);
 }
 
 function aiSectionEl() {
