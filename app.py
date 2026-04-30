@@ -267,10 +267,25 @@ def _worker(job_id: str, target: str, original_url: str, q: queue.Queue):
             profiles_dir=str(PROFILES),
         ).check(target))
         time.sleep(delay)
-        phishlabs = step("PhishLabs", lambda: PhishLabsClient(
-            username=keys.get("phishlabs_username", ""),
-            password=keys.get("phishlabs_password", ""),
-        ).query(target))
+        def _phishlabs_query():
+            result = {"cases": [], "total_searched": 0, "found": 0, "target": target}
+            container = [result]
+            def _run():
+                try:
+                    container[0] = PhishLabsClient(
+                        username=keys.get("phishlabs_username", ""),
+                        password=keys.get("phishlabs_password", ""),
+                    ).query(target)
+                except Exception as e:
+                    container[0]["error"] = str(e)
+            t = threading.Thread(target=_run, daemon=True)
+            t.start()
+            t.join(timeout=35)  # máximo 35s para no bloquear el análisis
+            if t.is_alive():
+                container[0]["error"] = "Timeout al consultar PhishLabs (>35s)"
+            return container[0]
+
+        phishlabs = step("PhishLabs", _phishlabs_query)
         time.sleep(delay)
 
         profile = ThreatProfile(target)

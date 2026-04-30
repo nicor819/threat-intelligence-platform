@@ -153,13 +153,22 @@ def create_phishlabs_case(url: str, brand: str, case_type: str, username: str, p
             timeout=20,
             verify=False,
         )
+        try:
+            data = r.json()
+        except Exception:
+            data = {}
+        case_id  = data.get("caseId") or "N/A"
+        case_num = data.get("caseNumber") or ""
+        msgs     = "; ".join(data.get("messages") or [])
+
         if 200 <= r.status_code < 300:
-            data     = r.json()
-            case_id  = data.get("caseId") or "N/A"
-            case_num = data.get("caseNumber") or ""
-            msgs     = "; ".join(data.get("messages") or [])
-            suffix   = f" — {msgs}" if msgs else ""
+            suffix = f" — {msgs}" if msgs else ""
             return _result(True, f"Caso #{case_num} creado en PhishLabs (ID: {case_id}){suffix}")
+
+        # 400 con caseId = la URL ya tiene un caso activo
+        if r.status_code == 400 and case_id != "N/A":
+            return _result(True, f"URL ya asignada al caso #{case_num} en PhishLabs. {msgs}")
+
         return _result(False, f"Código {r.status_code}: {r.text[:200]}")
     except Exception as e:
         return _result(False, str(e))
