@@ -390,23 +390,31 @@ function statsGridEl(p) {
   const geo   = p.geolocation || {};
   const whois = p.whois || {};
   const vt    = p.virustotal || {};
+  const pl    = p.phishlabs  || {};
+
+  const plCases   = pl.cases || [];
+  const plFound   = plCases.length;
+  const plStatuses = [...new Set(plCases.map(c => c.case_status).filter(Boolean))];
+  const plValue   = pl.error ? 'Error' : plFound > 0 ? `${plFound} caso${plFound > 1 ? 's' : ''}` : 'Sin casos';
+  const plSub     = pl.error ? pl.error.slice(0,40) : plFound > 0 ? plStatuses.join(' · ') : `${pl.total_searched || 0} registros revisados`;
 
   const items = [
-    { l: 'País',       v: geo.country    ? `${geo.country_code} — ${geo.country}` : '—' },
-    { l: 'Ciudad',     v: geo.city       || '—' },
-    { l: 'ISP',        v: geo.isp        || '—' },
-    { l: 'ASN',        v: (whois.asn || geo.asn || '—') },
-    { l: 'Registrador', v: whois.registrar || '—' },
-    { l: 'Creación',   v: whois.creation_date ? whois.creation_date.slice(0,10) : '—' },
+    { l: 'País',         v: geo.country    ? `${geo.country_code} — ${geo.country}` : '—' },
+    { l: 'Ciudad',       v: geo.city       || '—' },
+    { l: 'ISP',          v: geo.isp        || '—' },
+    { l: 'ASN',          v: (whois.asn || geo.asn || '—') },
+    { l: 'Registrador',  v: whois.registrar || '—' },
+    { l: 'Creación',     v: whois.creation_date ? whois.creation_date.slice(0,10) : '—' },
     { l: 'VT Malicioso', v: vt.malicious ?? '—', s: vt.malicious > 0 ? 'motores detectan amenaza' : '' },
+    { l: 'Fortra',       v: plValue, s: plSub, c: plFound > 0 ? 'var(--risk-high)' : null },
   ];
 
   const g = el('div', 'stat-grid');
   items.forEach(i => {
     const c = el('div', 'stat-cell');
     c.innerHTML = `<div class="sc-label">${i.l}</div>
-                   <div class="sc-value">${esc(String(i.v))}</div>
-                   ${i.s ? `<div class="sc-sub">${i.s}</div>` : ''}`;
+                   <div class="sc-value"${i.c ? ` style="color:${i.c}"` : ''}>${esc(String(i.v))}</div>
+                   ${i.s ? `<div class="sc-sub">${esc(String(i.s))}</div>` : ''}`;
     g.appendChild(c);
   });
   return g;
