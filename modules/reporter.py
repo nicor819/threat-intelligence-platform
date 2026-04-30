@@ -18,8 +18,9 @@ def report_google_safebrowsing(url: str) -> dict:
             "https://safebrowsing.google.com/safebrowsing/report_phish/",
             data={"hl": "es", "url": url},
             timeout=10,
+            allow_redirects=True,
         )
-        if r.status_code in (200, 204):
+        if r.status_code < 400:
             return _result(True, "Reporte enviado a Google Safe Browsing.")
         return _result(False, f"Código {r.status_code}")
     except Exception as e:
@@ -40,7 +41,8 @@ def report_netcraft(url: str) -> dict:
         )
         if 200 <= r.status_code < 300:
             data = r.json()
-            return _result(True, f"Aceptado por Netcraft. ID: {data.get('id', 'N/A')}")
+            uuid = data.get("uuid") or data.get("id", "N/A")
+            return _result(True, f"Aceptado por Netcraft. UUID: {uuid}")
         return _result(False, f"Código {r.status_code}: {r.text[:120]}")
     except Exception as e:
         return _result(False, str(e))

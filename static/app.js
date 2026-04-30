@@ -2285,7 +2285,12 @@ function openReportModal(p) {
   const secRapido = el('div', 'modal-section');
   secRapido.innerHTML = `<div class="modal-sec-label">Reporte rápido</div>`;
   const services = [
-    { id: 'google_sb',   label: 'Google Safe Browsing', icon: '🔵' },
+    {
+      id: 'google_sb', label: 'Google Safe Browsing', icon: '🔵',
+      manual: true,
+      formUrl: `https://safebrowsing.google.com/safebrowsing/report_phish/?hl=es&url=${encodeURIComponent(targetUrl)}`,
+      hint: 'Abre el formulario de Google pre-llenado — completa el CAPTCHA para enviar',
+    },
     { id: 'netcraft',    label: 'Netcraft',              icon: '🟠' },
     { id: 'urlhaus',     label: 'URLhaus',               icon: '🟣' },
     { id: 'smartscreen', label: 'Microsoft SmartScreen', icon: '🔷' },
@@ -2296,8 +2301,20 @@ function openReportModal(p) {
     const btn = el('button', 'modal-report-btn');
     const dot = el('span', 'report-status');
     btn.innerHTML = `<span class="report-icon">${svc.icon}</span><span>${svc.label}</span>`;
+    if (svc.manual) {
+      btn.innerHTML += ` <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:.5;flex-shrink:0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+      btn.title = svc.hint;
+    }
     btn.appendChild(dot);
     btn.onclick = async () => {
+      if (svc.manual) {
+        window.open(svc.formUrl, '_blank', 'noopener,noreferrer');
+        dot.className = 'report-status ok';
+        dot.title = 'Formulario abierto — completa el envío en la nueva pestaña';
+        btn.title  = 'Formulario abierto — completa el envío en la nueva pestaña';
+        btn.classList.add('reported');
+        return;
+      }
       btn.disabled = true;
       dot.className = 'report-status spinning';
       try {
