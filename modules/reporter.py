@@ -135,6 +135,7 @@ PHISHLABS_DESCRIPTIONS = {
 def create_phishlabs_case(url: str, brand: str, case_type: str, username: str, password: str) -> dict:
     if not username or not password:
         return _result(False, "Credenciales PhishLabs no configuradas.")
+    brand_value = PHISHLABS_BRANDS.get(brand, brand)
     description = PHISHLABS_DESCRIPTIONS.get(case_type, "Malicious Phishing site")
     payload = {
         "newCase": {
@@ -142,7 +143,7 @@ def create_phishlabs_case(url: str, brand: str, case_type: str, username: str, p
             "url":         url,
             "description": description,
             "caseType":    case_type,
-            "brand":       brand,
+            "brand":       brand_value,
         }
     }
     try:
