@@ -11,6 +11,7 @@ import re
 import threading
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -29,6 +30,7 @@ app      = Flask(__name__)
 OUTPUT   = Path(os.environ.get("OUTPUT_DIR", "output"))
 PROFILES = OUTPUT / "profiles"
 GRAPHS   = OUTPUT / "graphs"
+HISTORY_FILE = OUTPUT / "history.json"
 
 # Crear directorios al iniciar (necesario con gunicorn)
 OUTPUT.mkdir(parents=True, exist_ok=True)
@@ -36,6 +38,28 @@ PROFILES.mkdir(parents=True, exist_ok=True)
 GRAPHS.mkdir(parents=True, exist_ok=True)
 
 jobs: dict[str, dict] = {}   # job_id → {queue, profile, error}
+_history_lock = threading.Lock()
+
+
+# ── History helpers ───────────────────────────────────────────────────────────
+
+def _load_history() -> list:
+    try:
+        with open(HISTORY_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+def _save_history(entries: list) -> None:
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(entries, f, indent=2, default=str)
+
+def _append_history(entry: dict) -> None:
+    with _history_lock:
+        entries = _load_history()
+        entries = [e for e in entries if e.get("id") != entry["id"]]
+        entries.insert(0, entry)
+        _save_history(entries[:500])
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -218,6 +242,46 @@ def report_config():
     })
 
 
+@app.route("/history")
+def get_history():
+    return jsonify(_load_history())
+
+@app.route("/history/<entry_id>")
+def get_history_entry(entry_id: str):
+    entries = _load_history()
+    entry = next((e for e in entries if e.get("id") == entry_id), None)
+    if not entry:
+        return jsonify({"error": "No encontrado"}), 404
+    profile_path = PROFILES / entry.get("profile_file", "")
+    if not profile_path.exists():
+        return jsonify({"error": "Archivo de perfil no encontrado"}), 404
+    with open(profile_path) as f:
+        return jsonify(json.load(f))
+
+@app.route("/history/<entry_id>", methods=["DELETE"])
+def delete_history_entry(entry_id: str):
+    with _history_lock:
+        entries = _load_history()
+        entry = next((e for e in entries if e.get("id") == entry_id), None)
+        if entry:
+            p = PROFILES / entry.get("profile_file", "")
+            p.unlink(missing_ok=True)
+        _save_history([e for e in entries if e.get("id") != entry_id])
+    return jsonify({"ok": True})
+
+@app.route("/history", methods=["DELETE"])
+def clear_history():
+    with _history_lock:
+        for e in _load_history():
+            p = PROFILES / e.get("profile_file", "")
+            try:
+                p.unlink(missing_ok=True)
+            except OSError:
+                pass
+        _save_history([])
+    return jsonify({"ok": True})
+
+
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
@@ -316,9 +380,23 @@ def _worker(job_id: str, target: str, original_url: str, q: queue.Queue):
         full["graph_html_url"] = f"/output/graphs/{Path(paths['html']).name}" if paths.get("html") else None
 
         PROFILES.mkdir(parents=True, exist_ok=True)
-        json_path = PROFILES / f"{safe}.json"
+        ts           = datetime.now().strftime("%Y%m%d_%H%M%S")
+        profile_file = f"{safe}_{ts}.json"
+        json_path    = PROFILES / profile_file
         with open(json_path, "w") as f:
             json.dump(full, f, indent=2, default=str)
+
+        risk = full.get("risk_summary", {})
+        _append_history({
+            "id":           job_id,
+            "target":       target,
+            "original_url": original_url,
+            "analyzed_at":  datetime.now().isoformat(timespec="seconds"),
+            "risk_level":   risk.get("level", "UNKNOWN"),
+            "risk_score":   risk.get("score", 0),
+            "ioc_count":    len(full.get("iocs", [])),
+            "profile_file": profile_file,
+        })
 
         jobs[job_id]["profile"] = full
         q.put({"type": "done", "data": full})

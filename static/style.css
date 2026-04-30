@@ -248,6 +248,36 @@ body {
   padding: 0.25rem 0.875rem 0.5rem;
 }
 
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 0.5rem;
+}
+
+.h-count {
+  font-size: 0.6rem;
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 1px 5px;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+.btn-clear-hist {
+  background: none;
+  border: none;
+  font-size: 0.65rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 0.15s;
+  letter-spacing: 0.03em;
+}
+.btn-clear-hist:hover { color: var(--risk-high); }
+
 .history-list { display: flex; flex-direction: column; }
 
 .h-item {
@@ -258,6 +288,7 @@ body {
   cursor: pointer;
   border-left: 2px solid transparent;
   transition: background 0.1s;
+  position: relative;
 }
 .h-item:hover  { background: var(--surface); }
 .h-item.active { background: var(--surface); border-left-color: var(--text-2); }
@@ -293,6 +324,31 @@ body {
   display: block;
   margin-top: 0.1rem;
 }
+.h-date {
+  font-size: 0.65rem;
+  color: var(--border);
+  display: block;
+  margin-top: 0.05rem;
+}
+
+.h-del {
+  display: none;
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: color 0.1s, background 0.1s;
+}
+.h-item:hover .h-del { display: block; }
+.h-del:hover { color: var(--risk-high); background: var(--card); }
 
 /* Main */
 .plat-main {

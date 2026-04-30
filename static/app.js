@@ -17,6 +17,11 @@ landingInput.addEventListener('keydown', e => e.key === 'Enter' && submitTarget(
 platBtn.addEventListener('click', () => submitTarget(platInput.value));
 platInput.addEventListener('keydown', e => e.key === 'Enter' && submitTarget(platInput.value));
 
+document.getElementById('btn-clear-history')?.addEventListener('click', clearAllHistory);
+
+// Cargar historial del servidor al arrancar
+loadServerHistory();
+
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submitTarget(raw) {
   const val = raw.trim();
@@ -93,6 +98,17 @@ function updateHistoryItem(jobId, profile) {
   const sc   = document.getElementById(`hscore-${jobId}`);
   if (dot) dot.style.background = riskColor(risk.level);
   if (sc)  sc.textContent = `${risk.level} · ${risk.score}/100`;
+
+  // Agregar botón eliminar al completarse
+  const item = document.querySelector(`.h-item[data-id="${jobId}"]`);
+  if (item && !item.querySelector('.h-del')) {
+    const btn = el('button', 'h-del');
+    btn.title = 'Eliminar';
+    btn.textContent = '×';
+    btn.addEventListener('click', e => { e.stopPropagation(); deleteHistoryEntry(jobId); });
+    item.appendChild(btn);
+  }
+  updateHistoryCount();
 }
 
 function selectJob(jobId) {
@@ -100,6 +116,100 @@ function selectJob(jobId) {
   document.querySelector(`.h-item[data-id="${jobId}"]`)?.classList.add('active');
   S.activeId = jobId;
   if (S.jobs[jobId]) renderProfile(S.jobs[jobId]);
+}
+
+// ── Historial persistente (servidor) ─────────────────────────────────────────
+
+async function loadServerHistory() {
+  try {
+    const res     = await fetch('/history');
+    const entries = await res.json();
+    if (!Array.isArray(entries) || !entries.length) return;
+
+    // Pre-cargar sidebar con análisis previos
+    entries.forEach(e => addServerHistoryItem(e));
+    updateHistoryCount();
+
+    // Si no hay análisis activos en sesión, mostrar la plataforma
+    if (!S.activeId) switchToPlatform();
+  } catch (_) { /* sin historial disponible */ }
+}
+
+function addServerHistoryItem(entry) {
+  if (document.querySelector(`.h-item[data-id="${entry.id}"]`)) return;
+
+  const color = riskColor(entry.risk_level);
+  const date  = (() => {
+    try {
+      return new Date(entry.analyzed_at).toLocaleString('es-CO', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    } catch (_) { return entry.analyzed_at?.slice(0, 16) || ''; }
+  })();
+
+  const item = el('div', 'h-item');
+  item.dataset.id = entry.id;
+  item.innerHTML = `
+    <div class="h-dot" style="background:${color}"></div>
+    <div class="h-info">
+      <span class="h-target">${esc(entry.target)}</span>
+      <span class="h-original">${esc(truncate(entry.original_url || entry.target, 30))}</span>
+      <span class="h-score" style="color:${color}">${entry.risk_level} · ${entry.risk_score}/100</span>
+      <span class="h-date">${date} &middot; ${entry.ioc_count} IOCs</span>
+    </div>
+    <button class="h-del" title="Eliminar">&times;</button>`;
+
+  item.querySelector('.h-del').addEventListener('click', e => {
+    e.stopPropagation();
+    deleteHistoryEntry(entry.id);
+  });
+  item.addEventListener('click', () => selectServerJob(entry.id));
+  historyList.appendChild(item);
+}
+
+async function selectServerJob(entryId) {
+  document.querySelectorAll('.h-item').forEach(i => i.classList.remove('active'));
+  document.querySelector(`.h-item[data-id="${entryId}"]`)?.classList.add('active');
+  S.activeId = entryId;
+
+  if (S.jobs[entryId]) { renderProfile(S.jobs[entryId]); return; }
+
+  switchToPlatform();
+  platMain.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:2rem 0;text-align:center">Cargando análisis…</div>';
+  try {
+    const res = await fetch(`/history/${entryId}`);
+    if (!res.ok) throw new Error('No encontrado');
+    const profile     = await res.json();
+    S.jobs[entryId]   = profile;
+    renderProfile(profile);
+  } catch (e) {
+    renderError('No se pudo cargar el análisis: ' + e.message);
+  }
+}
+
+async function deleteHistoryEntry(entryId) {
+  await fetch(`/history/${entryId}`, { method: 'DELETE' });
+  const item = document.querySelector(`.h-item[data-id="${entryId}"]`);
+  if (item) item.remove();
+  if (S.activeId === entryId) { S.activeId = null; clearMain(); }
+  delete S.jobs[entryId];
+  updateHistoryCount();
+}
+
+async function clearAllHistory() {
+  if (!confirm('¿Eliminar todo el historial de análisis? Esta acción no se puede deshacer.')) return;
+  await fetch('/history', { method: 'DELETE' });
+  historyList.innerHTML = '';
+  S.activeId = null;
+  S.jobs     = {};
+  clearMain();
+  updateHistoryCount();
+}
+
+function updateHistoryCount() {
+  const count = document.querySelectorAll('.h-item').length;
+  const el2   = document.getElementById('history-count');
+  if (el2) el2.textContent = count || '';
 }
 
 // ── SSE ───────────────────────────────────────────────────────────────────────
@@ -1323,16 +1433,16 @@ async function downloadReport(p) {
 body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#1a1a2e;background:#fff;line-height:1.6;width:816px}
 
 /* ── COVER ── */
-.cover{width:816px;min-height:1056px;background:#0d1117;display:flex;flex-direction:column;page-break-after:always;position:relative;overflow:hidden}
-.cover-noise{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' x='0' y='0' fill='%23ffffff08'/%3E%3Crect width='1' height='1' x='2' y='2' fill='%23ffffff05'/%3E%3C/svg%3E");pointer-events:none}
-.cover-accent{position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#e53935 0%,#ff7043 40%,#ffd600 75%,#00bcd4 100%)}
-.cover-top{display:flex;justify-content:space-between;align-items:flex-start;padding:38px 52px 0;position:relative;z-index:1}
-.cover-logo{display:flex;flex-direction:column;gap:4px}
-.cover-logo-mark{font-size:16px;font-weight:900;color:#fff;letter-spacing:-.02em}
-.cover-logo-sub{font-size:7px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#4a5568}
-.cover-classification{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-.tlp{font-size:7.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;padding:4px 12px;border-radius:2px;color:#fff;background:${tlpColor}}
-.doc-type{font-size:7px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#4a5568}
+.cover{width:816px;min-height:1056px;background:#0d1117;display:flex;flex-direction:column;page-break-after:always;position:relative}
+.cover-accent{position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,${rc} 0%,${rc}cc 50%,#00bcd4 100%)}
+.cover-stripe{position:absolute;top:5px;left:0;right:0;height:1px;background:${rc}30}
+.cover-top{display:flex;justify-content:space-between;align-items:flex-start;padding:36px 52px 0;position:relative;z-index:1}
+.cover-logo{display:flex;flex-direction:column;gap:5px}
+.cover-logo-mark{font-size:17px;font-weight:900;color:#e8eaed;letter-spacing:-.02em}
+.cover-logo-sub{font-size:7px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#3d4f63}
+.cover-classification{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.tlp{font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;padding:5px 14px;border-radius:3px;color:#fff;background:${tlpColor}}
+.doc-type{font-size:7px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#3d4f63}
 .cover-divider{margin:30px 52px 0;height:1px;background:linear-gradient(90deg,#e5393520,#e5393580,#e5393520);position:relative;z-index:1}
 .cover-body{flex:1;padding:32px 52px 0;position:relative;z-index:1}
 .cover-eyebrow{font-size:7px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#4a90e2;margin-bottom:10px}
@@ -1348,17 +1458,18 @@ body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#1a1a2e;
 .risk-level-dot{width:8px;height:8px;border-radius:50%;background:${rc};flex-shrink:0}
 .risk-level-text{font-size:15px;font-weight:900;color:${rc};text-transform:uppercase;letter-spacing:.08em}
 .risk-desc{font-size:9px;color:#8892a4;line-height:1.6;max-width:420px}
-.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:20px}
-.sc-cell{background:#111827;border:1px solid #1e293b;border-radius:4px;padding:10px 12px}
-.sc-cell.alert{border-color:${rc}50;background:${rc}0a}
-.sc-val{font-size:13px;font-weight:800;color:#e8eaed;font-family:"Courier New",monospace}
+.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.sc-cell{background:#111827;border:1px solid #1e293b;border-radius:5px;padding:12px 14px}
+.sc-cell.alert{border-color:${rc}60;background:${rc}0d}
+.sc-val{font-size:14px;font-weight:800;color:#e8eaed;font-family:"Courier New",monospace}
 .sc-cell.alert .sc-val{color:${rc}}
-.sc-key{font-size:6.5px;text-transform:uppercase;letter-spacing:.1em;color:#4a5568;margin-top:3px}
+.sc-key{font-size:7px;text-transform:uppercase;letter-spacing:.1em;color:#4a5568;margin-top:4px}
 .flags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
-.flag-chip{font-size:7px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:2px;background:#ffd60012;border:1px solid #ffd60040;color:#ffd600}
-.cover-screenshot-wrap{margin:0 0 0;border-radius:6px;overflow:hidden;border:1px solid #1e293b;max-height:220px}
-.cover-screenshot-wrap img{display:block;width:100%;object-fit:cover;object-position:top}
-.cover-screenshot-label{font-size:6.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#4a5568;margin-bottom:6px}
+.flag-chip{font-size:7px;font-weight:700;text-transform:uppercase;padding:3px 9px;border-radius:2px;background:#ffd60012;border:1px solid #ffd60040;color:#ffd600}
+.cover-screenshot-wrap{border-radius:5px;overflow:hidden;border:1px solid #e74c3c40;max-height:130px}
+.cover-screenshot-wrap img{display:block;width:100%;height:130px;object-fit:cover;object-position:top}
+.cover-screenshot-label{font-size:6.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#4a5568;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.cover-screenshot-label::before{content:"⚠";color:#e74c3c;font-size:8px}
 .cover-footer{padding:24px 52px 28px;position:relative;z-index:1;border-top:1px solid #1e293b;margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end}
 .cover-footer-meta{font-size:7px;color:#2d3748;line-height:2}
 .cover-footer-pg{font-size:9px;color:#2d3748;font-family:monospace}
@@ -1415,16 +1526,16 @@ table.kv td.v{color:#0f172a;word-break:break-all}
 
 <!-- ════════════════ COVER ════════════════ -->
 <div class="cover">
-  <div class="cover-noise"></div>
   <div class="cover-accent"></div>
+  <div class="cover-stripe"></div>
 
   <div class="cover-top">
     <div class="cover-logo">
-      <div class="cover-logo-mark">◈ Ciberinteligencia</div>
+      <div class="cover-logo-mark">&#9672; VSAS Ciberinteligencia</div>
       <div class="cover-logo-sub">Threat Intelligence Platform</div>
     </div>
     <div class="cover-classification">
-      <span class="tlp">TLP:${tlpLabel} · CONFIDENCIAL</span>
+      <span class="tlp">TLP:${tlpLabel} &nbsp;&#8226;&nbsp; CONFIDENCIAL</span>
       <span class="doc-type">Threat Intelligence Report</span>
     </div>
   </div>
@@ -1461,13 +1572,11 @@ table.kv td.v{color:#0f172a;word-break:break-all}
 
     <div class="sc-grid">
       <div class="sc-cell${vt.malicious>0?' alert':''}"><div class="sc-val">${h(risk.vt_verdict||'N/A')}</div><div class="sc-key">VirusTotal</div></div>
-      <div class="sc-cell${man.mscore>=50?' alert':''}"><div class="sc-val">${man.mscore!=null?man.mscore:h(risk.mandiant_verdict||'N/A')}</div><div class="sc-key">Mandiant MScore</div></div>
-      <div class="sc-cell${vs.malicious?' alert':''}"><div class="sc-val">${vs.malicious?'MALICIOUS':'Clean'}</div><div class="sc-key">URLScan.io</div></div>
+      <div class="sc-cell${man.mscore>=50?' alert':''}"><div class="sc-val">${man.mscore!=null?man.mscore+'pts':h(risk.mandiant_verdict||'N/A')}</div><div class="sc-key">Mandiant</div></div>
+      <div class="sc-cell${vs.malicious?' alert':''}"><div class="sc-val">${vs.malicious?'MALICIOUS':vs.score!=null?vs.score+'/100':'Clean'}</div><div class="sc-key">URLScan.io</div></div>
       <div class="sc-cell${risk.otx_pulses>0?' alert':''}"><div class="sc-val">${risk.otx_pulses??0}</div><div class="sc-key">OTX Pulses</div></div>
       <div class="sc-cell${risk.threatfox_hits>0?' alert':''}"><div class="sc-val">${risk.threatfox_hits??0}</div><div class="sc-key">ThreatFox IOCs</div></div>
       <div class="sc-cell${risk.urlhaus_hits>0?' alert':''}"><div class="sc-val">${risk.urlhaus_hits??0}</div><div class="sc-key">URLhaus hits</div></div>
-      <div class="sc-cell"><div class="sc-val">${iocs.length}</div><div class="sc-key">IOCs totales</div></div>
-      <div class="sc-cell${(ht.open_ports||[]).length>0?' alert':''}"><div class="sc-val">${(ht.open_ports||[]).length}</div><div class="sc-key">Puertos abiertos</div></div>
     </div>
 
     ${riskFlags.length ? `<div class="flags">${riskFlags.map(f=>`<span class="flag-chip">${h(f)}</span>`).join('')}</div>` : ''}
@@ -1480,15 +1589,19 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   <div class="cover-footer">
     <div class="cover-footer-meta">
       <div>Generado: ${now}</div>
-      <div>Plataforma: Threat Intelligence Platform</div>
+      <div>Plataforma: VSAS Threat Intelligence Platform</div>
+      <div style="margin-top:3px;color:#1e293b">Clasificaci&#243;n: TLP:${tlpLabel} &mdash; Solo uso interno</div>
     </div>
-    <div class="cover-footer-pg">01</div>
+    <div style="text-align:right">
+      <div class="cover-footer-pg">01</div>
+      <div style="font-size:6.5px;color:#1e293b;margin-top:3px;font-family:monospace">ID: TIR-${h(p.target).replace(/[^a-z0-9]/gi,'').toUpperCase().slice(0,8)}</div>
+    </div>
   </div>
 </div>
 
 <!-- ════════════════ CONTENT ════════════════ -->
 <div class="pg-header">
-  <span class="pg-logo-sm">◈ Ciberinteligencia</span>
+  <span class="pg-logo-sm">&#9672; VSAS Ciberinteligencia</span>
   <span class="pg-center">${h(p.target)}</span>
   <span class="pg-tlp-sm">TLP:${tlpLabel}</span>
 </div>
@@ -1528,13 +1641,19 @@ ${sec('02', 'Evaluación de Amenaza', `
       ${scan.uuid ? `
         <table class="kv">
           ${kv('Veredicto', vs.malicious ? '⚠ MALICIOUS' : 'Limpio')}
-          ${kv('Score', vs.score)}
+          ${kv('Score', vs.score != null ? vs.score + ' / 100' : null)}
           ${kv('Motores maliciosos', vs.engine_malicious)}
           ${kv('Servidor', scan.server)}
           ${kv('Título de página', scan.title)}
           ${kv('TLS Issuer', scan.tls_issuer)}
           ${kv('Fecha escaneo', scan.scan_date)}
-        </table>` : '<p class="nil">Sin resultados de URLScan.</p>'}
+        </table>
+        ${screenshotUrl ? `
+        <p class="sl" style="margin-top:10px">Captura del sitio analizado</p>
+        <div style="border:1px solid ${vs.malicious?'#c0392b55':'#e2e8f0'};border-radius:4px;overflow:hidden;max-height:200px;margin-top:4px">
+          <img src="${screenshotUrl}" alt="Captura URLScan" style="display:block;width:100%;height:200px;object-fit:cover;object-position:top">
+        </div>` : ''}
+      ` : '<p class="nil">Sin resultados de URLScan.</p>'}
     </div>
   </div>
   ${vtRows.length ? `<p class="sl">Detecciones VirusTotal (${vtRows.length} motores)</p>${tbl(['Motor AV','Firma detectada','Categoría'], vtRows)}` : ''}
@@ -1673,27 +1792,43 @@ ${sec(p.graph_png_url ? '08' : '07', 'Recomendaciones', `
 
   // Overlay oscuro que cubre la UI mientras se genera el PDF
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:#0d1117cc;z-index:9997;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = '<div style="color:#4a90e2;font-size:13px;font-family:monospace;letter-spacing:.08em">Generando PDF…</div>';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#0d1117dd;z-index:9997;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="color:#4a90e2;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando PDF…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Esto puede tomar unos segundos</span></div>';
   document.body.appendChild(overlay);
 
-  // iframe en posición 0,0 para que html2canvas lo capture correctamente
+  // iframe fuera de pantalla (izquierda) con altura suficiente para renderizar todo el contenido
   const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:0;left:0;width:816px;height:100vh;border:none;z-index:9998;opacity:0;pointer-events:none';
+  iframe.style.cssText = 'position:fixed;top:0;left:-900px;width:816px;height:20000px;border:none;z-index:9998;background:#fff';
   document.body.appendChild(iframe);
   try {
     iframe.contentDocument.open();
     iframe.contentDocument.write(html);
     iframe.contentDocument.close();
-    await new Promise(r => setTimeout(r, 500));
+    // Esperar imágenes y fonts
+    await new Promise(r => setTimeout(r, 1400));
     const body = iframe.contentDocument.body;
-    body.style.width = '816px';
+    const docEl = iframe.contentDocument.documentElement;
+    const contentH = Math.max(body.scrollHeight, docEl.scrollHeight, 1056);
+    iframe.style.height = contentH + 'px';
+    body.style.cssText = 'width:816px;min-width:816px;overflow-x:hidden';
+    await new Promise(r => setTimeout(r, 200));
     await html2pdf().set({
       margin: 0,
       filename: `TIR-${p.target.replace(/[^a-z0-9]/gi,'_')}.pdf`,
-      image: { type: 'jpeg', quality: 0.92 },
-      html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false, windowWidth: 816, scrollX: 0, scrollY: 0 },
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        windowWidth: 816,
+        scrollX: 0,
+        scrollY: 0,
+        width: 816,
+        imageTimeout: 20000,
+      },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: ['.sec', 'tr'] },
     }).from(body).save();
   } finally {
     document.body.removeChild(iframe);

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=18">
+  <link rel="stylesheet" href="/static/style.css?v=19">
 </head>
 <body>
 
@@ -78,7 +78,10 @@
 
       <!-- Sidebar -->
       <aside class="plat-sidebar">
-        <div class="sidebar-section-label">Historial</div>
+        <div class="history-header">
+          <span class="sidebar-section-label">Historial <span id="history-count" class="h-count"></span></span>
+          <button id="btn-clear-history" class="btn-clear-hist" title="Limpiar todo el historial">limpiar</button>
+        </div>
         <div id="history-list" class="history-list"></div>
       </aside>
 
@@ -96,6 +99,6 @@
   </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="/static/app.js?v=18"></script>
+<script src="/static/app.js?v=19"></script>
 </body>
 </html>
