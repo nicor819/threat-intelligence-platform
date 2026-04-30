@@ -328,10 +328,7 @@ function renderProfile(p) {
   // ⑨  Fortra
   if (p.phishlabs) platMain.appendChild(phishlabsEl(p.phishlabs));
 
-  // ⑩  Panel de reporte
-  platMain.appendChild(reportPanelEl(p.original_url || p.target));
-
-  // ⑪  Graph
+  // ⑩  Graph
   if (p.graph_png_url) platMain.appendChild(graphEl(p));
 
   platMain.querySelectorAll('.section, .stat-cell, .risk-header')

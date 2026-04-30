@@ -120,15 +120,33 @@ PHISHLABS_BRANDS = {
 }
 
 PHISHLABS_CASE_TYPES = {
-    "Phishing":          "Phishing",
-    "Malware":           "Malware",
-    "Phishing Redirect": "Phishing Redirect",
+    "Phishing":           "Phishing",
+    "Phishing Redirect":  "Phishing Redirect",
+    "Malware":            "Malware",
+    "Credential Theft":   "Credential Theft",
+    "Crimeware":          "Crimeware",
+    "Customer Inquiry":   "Customer Inquiry",
+    "Dark Web":           "Dark Web",
+    "Domains":            "Domains",
+    "Mobile":             "Mobile",
+    "Open Web":           "Open Web",
+    "Social Media":       "Social Media",
+    "Other":              "Other",
 }
 
 PHISHLABS_DESCRIPTIONS = {
-    "Phishing":          "Malicious Phishing site",
-    "Malware":           "Malware",
-    "Phishing Redirect": "Malicious redirect site",
+    "Phishing":           "Malicious Phishing site",
+    "Phishing Redirect":  "Malicious redirect site",
+    "Malware":            "Malware distribution site",
+    "Credential Theft":   "Credential theft site targeting brand customers",
+    "Crimeware":          "Crimeware activity detected",
+    "Customer Inquiry":   "Customer inquiry regarding suspicious activity",
+    "Dark Web":           "Dark web mention or exposure",
+    "Domains":            "Suspicious domain impersonating brand",
+    "Mobile":             "Malicious mobile application or content",
+    "Open Web":           "Open web exposure or brand abuse",
+    "Social Media":       "Social media impersonation or abuse",
+    "Other":              "Other malicious activity",
 }
 
 
@@ -139,11 +157,12 @@ def create_phishlabs_case(url: str, brand: str, case_type: str, username: str, p
     description = PHISHLABS_DESCRIPTIONS.get(case_type, "Malicious Phishing site")
     payload = {
         "newCase": {
-            "title":       url,
-            "url":         url,
-            "description": description,
-            "caseType":    case_type,
-            "brand":       brand_value,
+            "title":         url,
+            "url":           url,
+            "description":   description,
+            "caseType":      case_type,
+            "brand":         brand_value,
+            "attackSources": [{"url": url}],
         }
     }
     try:
