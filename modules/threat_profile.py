@@ -27,6 +27,7 @@ class ThreatProfile:
         mandiant_data: dict = None,
         socradar_data: dict = None,
         host_tracker_data: dict = None,
+        phishlabs_data: dict = None,
     ) -> dict:
         self.whois        = whois_data
         self.virustotal   = vt_data
@@ -36,6 +37,7 @@ class ThreatProfile:
         self.mandiant     = mandiant_data or {}
         self.socradar     = socradar_data or {}
         self.host_tracker = host_tracker_data or {}
+        self.phishlabs    = phishlabs_data or {}
         self._risk_score  = self._calculate_risk()
 
         return {
@@ -52,6 +54,7 @@ class ThreatProfile:
             "socradar":          self.socradar,
             "threat_intelligence": self.intel,
             "host_tracker":      self.host_tracker,
+            "phishlabs":         self.phishlabs,
             "graph_nodes":       self._extract_graph_nodes(),
             "graph_edges":       self._extract_graph_edges(),
         }

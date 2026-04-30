@@ -7,7 +7,8 @@ from .mandiant import MandiantClient
 from .socradar import SOCRadarClient
 from .threat_profile import ThreatProfile
 from .host_tracker import HostTracker
+from .phishlabs import PhishLabsClient
 
 __all__ = ["WhoisLookup", "VirusTotalClient", "GeoLocator", "ForumScraper",
            "URLScanClient", "MandiantClient", "SOCRadarClient", "ThreatProfile",
-           "HostTracker"]
+           "HostTracker", "PhishLabsClient"]

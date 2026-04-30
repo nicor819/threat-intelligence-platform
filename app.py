@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 import yaml
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 
-from modules import WhoisLookup, VirusTotalClient, GeoLocator, ForumScraper, URLScanClient, MandiantClient, SOCRadarClient, ThreatProfile, HostTracker
+from modules import WhoisLookup, VirusTotalClient, GeoLocator, ForumScraper, URLScanClient, MandiantClient, SOCRadarClient, ThreatProfile, HostTracker, PhishLabsClient
 from graph_builder import GraphBuilder
 
 app      = Flask(__name__)
@@ -44,14 +44,16 @@ def load_cfg() -> dict:
 
     # Variables de entorno sobreescriben config.yaml (útil en producción)
     env_map = {
-        "VT_API_KEY":           ("api_keys", "virustotal"),
-        "URLSCAN_API_KEY":      ("api_keys", "urlscan"),
-        "ALIENVAULT_API_KEY":   ("api_keys", "alienvault"),
-        "THREATFOX_API_KEY":    ("api_keys", "threatfox"),
-        "MANDIANT_KEY_ID":      ("api_keys", "mandiant_key_id"),
-        "MANDIANT_KEY_SECRET":  ("api_keys", "mandiant_key_secret"),
-        "SOCRADAR_API_KEY":     ("api_keys", "socradar"),
-        "SHODAN_API_KEY":       ("api_keys", "shodan"),
+        "VT_API_KEY":              ("api_keys", "virustotal"),
+        "URLSCAN_API_KEY":         ("api_keys", "urlscan"),
+        "ALIENVAULT_API_KEY":      ("api_keys", "alienvault"),
+        "THREATFOX_API_KEY":       ("api_keys", "threatfox"),
+        "MANDIANT_KEY_ID":         ("api_keys", "mandiant_key_id"),
+        "MANDIANT_KEY_SECRET":     ("api_keys", "mandiant_key_secret"),
+        "SOCRADAR_API_KEY":        ("api_keys", "socradar"),
+        "SHODAN_API_KEY":          ("api_keys", "shodan"),
+        "PHISHLABS_USERNAME":      ("api_keys", "phishlabs_username"),
+        "PHISHLABS_PASSWORD":      ("api_keys", "phishlabs_password"),
     }
     for env_var, (section, key) in env_map.items():
         val = os.environ.get(env_var)
@@ -159,6 +161,7 @@ STEPS = [
     ("Mandiant",        "mandiant"),
     ("SOCRadar",        "socradar"),
     ("Host Tracker",    "hosttracker"),
+    ("PhishLabs",       "phishlabs"),
     ("Grafo",           "graph"),
 ]
 
@@ -206,9 +209,14 @@ def _worker(job_id: str, target: str, original_url: str, q: queue.Queue):
             profiles_dir=str(PROFILES),
         ).check(target))
         time.sleep(delay)
+        phishlabs = step("PhishLabs", lambda: PhishLabsClient(
+            username=keys.get("phishlabs_username", ""),
+            password=keys.get("phishlabs_password", ""),
+        ).query(target))
+        time.sleep(delay)
 
         profile = ThreatProfile(target)
-        full    = profile.build(whois, vt, geo, intel, urlscan, mandiant, socradar, host_track)
+        full    = profile.build(whois, vt, geo, intel, urlscan, mandiant, socradar, host_track, phishlabs)
         full["original_url"] = original_url
 
         q.put({"type": "step", "data": {"name": "Grafo", "status": "running"}})

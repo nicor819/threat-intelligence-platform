@@ -138,6 +138,7 @@ const STEPS = [
   { name: 'Mandiant',        icon: '○' },
   { name: 'SOCRadar',        icon: '○' },
   { name: 'Host Tracker',    icon: '○' },
+  { name: 'PhishLabs',       icon: '○' },
   { name: 'Grafo',           icon: '○' },
 ];
 
@@ -214,7 +215,10 @@ function renderProfile(p) {
   // ⑧  Host Tracker
   if (p.host_tracker) platMain.appendChild(hostTrackerEl(p.host_tracker));
 
-  // ⑨  Graph
+  // ⑨  PhishLabs
+  if (p.phishlabs) platMain.appendChild(phishlabsEl(p.phishlabs));
+
+  // ⑩  Graph
   if (p.graph_png_url) platMain.appendChild(graphEl(p));
 
   platMain.querySelectorAll('.section, .stat-cell, .risk-header')
@@ -892,6 +896,74 @@ function urlscanEl(us) {
     });
     bd.appendChild(t);
   }
+
+  return s;
+}
+
+// ── PhishLabs ─────────────────────────────────────────────────────────────────
+function phishlabsEl(pl) {
+  const s  = section('PhishLabs');
+  const bd = s.querySelector('.section-bd');
+
+  if (pl.error) {
+    bd.innerHTML = `<p class="no-data">Error: ${esc(pl.error)}</p>`;
+    return s;
+  }
+
+  const cases = pl.cases || [];
+  const scanned = pl.total_searched || 0;
+
+  // Resumen
+  const statsRow = el('div', 'vt-stats');
+  [
+    { k: 'Casos encontrados', v: cases.length,  c: cases.length > 0 ? 'var(--risk-crit)' : 'var(--risk-clean)' },
+    { k: 'Registros buscados', v: scanned,       c: null },
+  ].forEach(i => {
+    const c = el('div', 'vt-cell');
+    c.innerHTML = `<div class="vl" style="${i.c ? `color:${i.c}` : ''}">${i.v}</div><div class="vk">${i.k}</div>`;
+    statsRow.appendChild(c);
+  });
+  bd.appendChild(statsRow);
+
+  if (!cases.length) {
+    const note = el('p', 'no-data');
+    note.textContent = `Sin casos existentes en PhishLabs para este indicador (revisados ${scanned} casos recientes).`;
+    bd.appendChild(note);
+    return s;
+  }
+
+  // Tabla de casos
+  label(bd, `${cases.length} caso(s) encontrado(s)`);
+  const t = tbl(['#', 'Título', 'Tipo', 'Estado', 'Marca', 'Fecha']);
+  cases.forEach(c => {
+    const statusCls = { New:'risk-dot-high', Assigned:'risk-dot-high', Closed:'risk-dot-clean',
+                        Rejected:'risk-dot-info', Duplicate:'risk-dot-medium' }[c.case_status] || 'risk-dot-info';
+    const caseUrl = `https://caseapi.phishlabs.com/v1/data/cases/${c.case_id}`;
+    addRow(t, [
+      `<a href="${caseUrl}" target="_blank" style="color:var(--text-2);font-size:.75rem">${c.case_number || '—'}</a>`,
+      `<span style="font-size:.78rem">${esc((c.title||'').slice(0,60))}${c.title?.length>60?'…':''}</span>`,
+      esc(c.case_type || '—'),
+      `<span class="risk-dot ${statusCls}"></span> ${esc(c.case_status || '—')}`,
+      esc(c.brand || '—'),
+      esc((c.date_created||'').slice(0,10)),
+    ]);
+
+    // Attack sources dentro del caso
+    const sources = c.attack_sources || [];
+    sources.forEach(src => {
+      if (src.screenshot) {
+        label(bd, `Screenshot – Caso #${c.case_number}`);
+        const wrap = el('div', 'urlscan-screenshot-wrap'); wrap.style.marginBottom = '.75rem';
+        const img  = document.createElement('img');
+        img.src = src.screenshot; img.alt = 'PhishLabs screenshot';
+        img.className = 'urlscan-screenshot'; img.loading = 'lazy';
+        img.onclick = () => window.open(src.screenshot, '_blank');
+        wrap.appendChild(img);
+        bd.appendChild(wrap);
+      }
+    });
+  });
+  bd.appendChild(t);
 
   return s;
 }
