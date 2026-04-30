@@ -693,7 +693,6 @@ tr:hover .ioc-copy { opacity: 1; }
 
 /* ── TIR download button ─────────────────────────────────────── */
 .btn-tir {
-  margin-left: auto;
   flex-shrink: 0;
   height: 30px;
   padding: 0 0.85rem;
@@ -708,7 +707,31 @@ tr:hover .ioc-copy { opacity: 1; }
   white-space: nowrap;
   transition: border-color 0.15s, color 0.15s;
 }
+.btn-tir { display: inline-flex; align-items: center; gap: .4rem; }
 .btn-tir:hover { border-color: var(--border-2); color: var(--text); }
+
+/* ── WhatsApp button ─────────────────────────────────────────── */
+.btn-whatsapp {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  height: 30px;
+  padding: 0 0.85rem;
+  background: #25D366;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-family: var(--font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 0.15s, opacity 0.15s;
+}
+.btn-whatsapp:hover { background: #1ebe5c; }
 
 /* ── Animations ──────────────────────────────────────────────── */
 .fade-in { animation: fadeIn 0.25s ease; }
