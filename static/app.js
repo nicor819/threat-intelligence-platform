@@ -377,10 +377,6 @@ function riskHeaderEl(p) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Reportar URL
       </button>
-      <button class="btn-tir" id="btn-tir-main" onclick="downloadReport(window._currentProfile)" title="Descargar Threat Intelligence Report">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Descargar TIR
-      </button>
       <a class="btn-whatsapp" href="https://wa.me/573008876817?text=${encodeURIComponent('Hola, quisiera más información sobre este sitio analizado: ' + (p.original_url || p.target))}" target="_blank" title="Consultar con Mensaje Sospechoso">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
         Mensaje Sospechoso
@@ -1864,9 +1860,9 @@ async function generateAIAnalysis(p) {
   if (!p) return;
   const btn = document.getElementById('btn-ai-main');
 
-  // Si ya fue generado, solo hacer scroll a la sección
+  // Si ya fue generado, descargar PDF directamente
   if (p._ai_analysis) {
-    document.getElementById('ai-section')?.scrollIntoView({ behavior: 'smooth' });
+    await downloadAIReport(p, p._ai_analysis);
     return;
   }
 
@@ -1876,7 +1872,7 @@ async function generateAIAnalysis(p) {
   let aiSec = document.getElementById('ai-section');
   if (!aiSec) {
     aiSec = aiSectionEl();
-    platMain.insertBefore(aiSec, platMain.firstChild.nextSibling); // después del risk header
+    platMain.insertBefore(aiSec, platMain.firstChild.nextSibling);
   }
   const aiBody = aiSec.querySelector('.ai-body');
   aiBody.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div><span>Analizando con Gemini 2.0 Flash…</span></div>`;
@@ -1892,10 +1888,335 @@ async function generateAIAnalysis(p) {
 
     p._ai_analysis = data.analysis;
     renderAIAnalysis(aiBody, data.analysis);
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Ver análisis IA`; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Análisis IA`; }
+
+    // Descargar PDF con el informe generado por IA
+    await downloadAIReport(p, data.analysis);
   } catch (e) {
     aiBody.innerHTML = `<p style="color:var(--risk-crit);font-size:.82rem;padding:.5rem 0">${esc(e.message)}</p>`;
     if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Análisis IA`; }
+  }
+}
+
+// ── Descarga PDF generado por IA ──────────────────────────────────────────────
+async function downloadAIReport(p, aiMarkdown) {
+  const risk   = p.risk_summary || {};
+  const whois  = p.whois        || {};
+  const geo    = p.geolocation  || {};
+  const vt     = p.virustotal   || {};
+  const us     = p.urlscan      || {};
+  const iocs   = p.iocs         || [];
+  const ht     = p.host_tracker || {};
+  const intel  = p.threat_intelligence || {};
+  const now    = new Date().toISOString().slice(0,16).replace('T',' ');
+  const scan   = us.latest_scan || us.new_scan || {};
+  const vs     = us.verdicts    || {};
+
+  const RC = { CRITICAL:'#c0392b', HIGH:'#d35400', MEDIUM:'#d4ac0d', LOW:'#27ae60', CLEAN:'#1e8449' };
+  const rc = RC[risk.level] || '#555';
+  const tlpColor = { CRITICAL:'#c0392b', HIGH:'#c0392b', MEDIUM:'#f39c12', LOW:'#27ae60', CLEAN:'#27ae60' }[risk.level] || '#555';
+  const tlpLabel = risk.level === 'CLEAN' || risk.level === 'LOW' ? 'GREEN' : risk.level === 'MEDIUM' ? 'AMBER' : 'RED';
+
+  function h(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function kv(k,v) { if(!v && v!==0) return ''; return `<tr><td class="k">${h(k)}</td><td class="v">${h(v)}</td></tr>`; }
+  function chip(text, color) {
+    return `<span style="display:inline-block;background:${color}18;color:${color};border:1px solid ${color}55;padding:1px 6px;border-radius:2px;font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap">${h(text)}</span>`;
+  }
+  function tbl(heads, rows) {
+    if(!rows.length) return '<p class="nil">Sin datos registrados.</p>';
+    return `<table><thead><tr>${heads.map(h2=>`<th>${h2}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  }
+
+  // Convertir markdown IA a HTML
+  const aiHtml = aiMarkdown
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h4 class="ai-h4">$1</h4>')
+    .replace(/^## (.+)$/gm,  '<h3 class="ai-h3">$1</h3>')
+    .replace(/^# (.+)$/gm,   '<h2 class="ai-h2">$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,   '<em>$1</em>')
+    .replace(/`(.+?)`/g,     '<code>$1</code>')
+    .replace(/^- (.+)$/gm,   '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul class="ai-ul">${m}</ul>`)
+    .replace(/\n\n+/g, '</p><p class="ai-p">')
+    .replace(/^(?!<[hul])(.+)$/gm, '<p class="ai-p">$1</p>')
+    .replace(/<p class="ai-p"><\/p>/g, '');
+
+  // Tablas de soporte (apéndice)
+  const iocRisk = { critical:'#c0392b', high:'#d35400', medium:'#d4ac0d', info:'#888' };
+  const iocRows = iocs.map(i => `<tr>
+    <td style="width:8px;padding-right:0"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${iocRisk[i.risk]||'#aaa'}"></span></td>
+    <td>${chip(i.type, iocRisk[i.risk]||'#888')}</td>
+    <td style="font-family:'Courier New',monospace;font-size:9px;word-break:break-all">${h(i.value)}</td>
+    <td style="white-space:nowrap">${h(i.source)}</td>
+    <td>${h(i.context)}</td>
+  </tr>`);
+
+  const vtRows  = (vt.detections||[]).map(d=>`<tr><td>${h(d.engine)}</td><td style="font-family:monospace;font-size:9px">${h(d.result||'—')}</td><td>${chip(d.category, d.category==='malicious'?'#c0392b':'#d35400')}</td></tr>`);
+  const portRows= (ht.open_ports||[]).map(pp=>{const r2=[21,23,445,3389,3306,5432,6379,27017,1433].includes(pp.port);return`<tr><td style="font-family:monospace;font-weight:700">${pp.port}</td><td>${chip(pp.service,r2?'#d35400':'#555')}</td><td style="font-size:9px;color:#888">${h(pp.banner||'—')}</td><td>${r2?chip('alto riesgo','#c0392b'):chip('normal','#27ae60')}</td></tr>`;});
+  const screenshotUrl = us.screenshot_url ? `/proxy/img?url=${encodeURIComponent(us.screenshot_url)}` : null;
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>TIR-IA — ${h(p.target)}</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#1a1a2e;background:#fff;line-height:1.6;width:816px}
+
+/* ── COVER ── */
+.cover{width:816px;min-height:1056px;background:#0d1117;display:flex;flex-direction:column;page-break-after:always;position:relative}
+.cover-accent{position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,${rc} 0%,${rc}cc 50%,#7c3aed 100%)}
+.cover-stripe{position:absolute;top:5px;left:0;right:0;height:1px;background:${rc}30}
+.cover-top{display:flex;justify-content:space-between;align-items:flex-start;padding:36px 52px 0;position:relative;z-index:1}
+.cover-logo{display:flex;flex-direction:column;gap:5px}
+.cover-logo-mark{font-size:17px;font-weight:900;color:#e8eaed;letter-spacing:-.02em}
+.cover-logo-sub{font-size:7px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:#3d4f63}
+.cover-classification{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.tlp{font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;padding:5px 14px;border-radius:3px;color:#fff;background:${tlpColor}}
+.doc-type{font-size:7px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#3d4f63}
+.ai-badge-cover{font-size:7px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;padding:4px 12px;border-radius:3px;color:#fff;background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid #7c3aed60}
+.cover-divider{margin:30px 52px 0;height:1px;background:linear-gradient(90deg,#7c3aed20,#7c3aed80,#7c3aed20);position:relative;z-index:1}
+.cover-body{flex:1;padding:32px 52px 0;position:relative;z-index:1}
+.cover-eyebrow{font-size:7px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#7c3aed;margin-bottom:10px}
+.cover-target{font-size:28px;font-weight:800;color:#e8eaed;word-break:break-all;line-height:1.2;margin-bottom:6px;font-family:"Courier New",monospace}
+.cover-orig{font-size:8.5px;color:#4a5568;margin-bottom:30px;word-break:break-all;font-family:monospace}
+.cover-risk-band{display:flex;align-items:stretch;gap:0;margin-bottom:28px;border:1px solid #1e293b;border-radius:6px;overflow:hidden}
+.risk-score-box{background:${rc}15;border-right:1px solid #1e293b;padding:20px 28px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;min-width:100px}
+.risk-score-num{font-size:36px;font-weight:900;color:${rc};line-height:1;font-family:"Courier New",monospace}
+.risk-score-den{font-size:8px;color:${rc};opacity:.6;letter-spacing:.1em}
+.risk-score-label{font-size:7px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#4a5568;margin-top:4px}
+.risk-detail{padding:18px 22px;flex:1}
+.risk-level-badge{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px}
+.risk-level-dot{width:8px;height:8px;border-radius:50%;background:${rc};flex-shrink:0}
+.risk-level-text{font-size:15px;font-weight:900;color:${rc};text-transform:uppercase;letter-spacing:.08em}
+.risk-desc{font-size:9px;color:#8892a4;line-height:1.6;max-width:420px}
+.sc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px}
+.sc-cell{background:#111827;border:1px solid #1e293b;border-radius:5px;padding:12px 14px}
+.sc-cell.alert{border-color:${rc}60;background:${rc}0d}
+.sc-val{font-size:14px;font-weight:800;color:#e8eaed;font-family:"Courier New",monospace}
+.sc-cell.alert .sc-val{color:${rc}}
+.sc-key{font-size:7px;text-transform:uppercase;letter-spacing:.1em;color:#4a5568;margin-top:4px}
+.cover-footer{padding:24px 52px 28px;position:relative;z-index:1;border-top:1px solid #1e293b;margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end}
+.cover-footer-meta{font-size:7px;color:#2d3748;line-height:2}
+
+/* ── PAGE HEADER ── */
+.pg-header{display:flex;justify-content:space-between;align-items:center;padding:20px 52px 14px;background:#0d1117;border-bottom:1px solid #1e293b}
+.pg-logo-sm{font-size:11px;font-weight:900;color:#e8eaed;letter-spacing:-.01em}
+.pg-center{font-size:6.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#4a5568;font-family:monospace;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-tlp-sm{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;background:${tlpColor};color:#fff;padding:2px 8px;border-radius:2px}
+
+/* ── CONTENT ── */
+.content{padding:28px 52px 56px;background:#fff}
+
+/* ── AI NARRATIVE ── */
+.ai-intro{background:#f8f4ff;border:1px solid #7c3aed30;border-radius:6px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px}
+.ai-intro-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.ai-intro-text{font-size:9px;color:#4a5568;line-height:1.7}
+.ai-intro-text strong{color:#7c3aed}
+.ai-narrative{font-size:10.5px;color:#1e293b;line-height:1.75}
+.ai-h2{font-size:13px;font-weight:800;color:#0d1117;margin:20px 0 8px;padding-bottom:5px;border-bottom:2px solid #0d1117;text-transform:uppercase;letter-spacing:.05em}
+.ai-h3{font-size:11px;font-weight:700;color:#1e293b;margin:16px 0 6px;padding-left:10px;border-left:3px solid #7c3aed}
+.ai-h4{font-size:10px;font-weight:700;color:#374151;margin:12px 0 5px;text-transform:uppercase;letter-spacing:.06em}
+.ai-p{font-size:10px;color:#374151;line-height:1.75;margin-bottom:8px}
+.ai-ul{padding-left:18px;margin:6px 0 10px}
+.ai-ul li{font-size:10px;color:#374151;line-height:1.7;margin-bottom:3px;list-style:disc}
+code{font-family:"Courier New",monospace;font-size:9px;background:#f1f5f9;padding:1px 4px;border-radius:2px;color:#7c3aed}
+
+/* ── APPENDIX ── */
+.appendix-title{font-size:8px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#94a3b8;margin:28px 0 14px;padding-top:16px;border-top:1px solid #e2e8f0}
+.sec{margin-top:18px;page-break-inside:avoid}
+.sec-hd{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #0d1117}
+.sec-num{font-size:7.5px;font-weight:800;letter-spacing:.12em;color:#7c3aed;font-family:monospace;min-width:22px}
+.sec-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#0d1117}
+.sec-bd{padding-left:32px}
+table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:4px}
+th{text-align:left;font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;padding:5px 8px;border-bottom:2px solid #e2e8f0;background:#f8fafc}
+td{padding:5px 8px;border-bottom:1px solid #f1f5f9;vertical-align:top;color:#1e293b}
+tr:last-child td{border-bottom:none}
+table.kv td.k{color:#64748b;width:150px;white-space:nowrap;font-size:8.5px}
+table.kv td.v{color:#0f172a;word-break:break-all}
+.nil{font-size:9px;color:#cbd5e1;font-style:italic;padding:4px 0}
+.divider{border:none;border-top:1px solid #e2e8f0;margin:20px 0}
+.page-break{page-break-before:always}
+.report-footer{display:flex;justify-content:space-between;font-size:7px;color:#94a3b8;padding-top:10px;border-top:1px solid #e2e8f0;margin-top:10px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.sl{font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#94a3b8;margin:12px 0 5px;padding-bottom:3px;border-bottom:1px solid #f1f5f9}
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-accent"></div>
+  <div class="cover-stripe"></div>
+  <div class="cover-top">
+    <div class="cover-logo">
+      <div class="cover-logo-mark">&#9672; VSAS Ciberinteligencia</div>
+      <div class="cover-logo-sub">Threat Intelligence Platform</div>
+    </div>
+    <div class="cover-classification">
+      <span class="tlp">TLP:${tlpLabel} &nbsp;&#8226;&nbsp; CONFIDENCIAL</span>
+      <span class="ai-badge-cover">&#9670; Informe Generado por IA</span>
+      <span class="doc-type">Threat Intelligence Report</span>
+    </div>
+  </div>
+  <div class="cover-divider"></div>
+  <div class="cover-body">
+    <div class="cover-eyebrow">Indicador analizado · Análisis IA (Gemini 2.0 Flash)</div>
+    <div class="cover-target">${h(p.target)}</div>
+    ${p.original_url && p.original_url !== p.target
+      ? `<div class="cover-orig">${h(p.original_url)}</div>`
+      : '<div style="height:14px"></div>'}
+    <div class="cover-risk-band">
+      <div class="risk-score-box">
+        <div class="risk-score-num">${risk.score??'—'}</div>
+        <div class="risk-score-den">/100</div>
+        <div class="risk-score-label">Risk Score</div>
+      </div>
+      <div class="risk-detail">
+        <div class="risk-level-badge">
+          <span class="risk-level-dot"></span>
+          <span class="risk-level-text">${risk.level||'—'}</span>
+        </div>
+        <div class="risk-desc">${
+          risk.level==='CRITICAL' ? 'Indicador activamente malicioso confirmado por múltiples fuentes de inteligencia. Se requiere acción de bloqueo inmediata.' :
+          risk.level==='HIGH'     ? 'Alta probabilidad de actividad maliciosa detectada. Se recomienda bloqueo preventivo y revisión de logs.' :
+          risk.level==='MEDIUM'   ? 'Actividad sospechosa detectada en una o más fuentes. Monitoreo activo recomendado.' :
+          risk.level==='LOW'      ? 'Riesgo bajo. Sin detecciones significativas en las fuentes de inteligencia consultadas.' :
+                                    'Sin detecciones en las fuentes de inteligencia consultadas. Sin indicios de actividad maliciosa.'
+        }</div>
+      </div>
+    </div>
+    <div class="sc-grid">
+      <div class="sc-cell${vt.malicious>0?' alert':''}"><div class="sc-val">${h(risk.vt_verdict||'N/A')}</div><div class="sc-key">VirusTotal</div></div>
+      <div class="sc-cell${(p.mandiant||{}).mscore>=50?' alert':''}"><div class="sc-val">${(p.mandiant||{}).mscore!=null?(p.mandiant.mscore)+'pts':h(risk.mandiant_verdict||'N/A')}</div><div class="sc-key">Mandiant</div></div>
+      <div class="sc-cell${vs.malicious?' alert':''}"><div class="sc-val">${vs.malicious?'MALICIOUS':vs.score!=null?vs.score+'/100':'Clean'}</div><div class="sc-key">URLScan.io</div></div>
+      <div class="sc-cell${risk.otx_pulses>0?' alert':''}"><div class="sc-val">${risk.otx_pulses??0}</div><div class="sc-key">OTX Pulses</div></div>
+      <div class="sc-cell${risk.threatfox_hits>0?' alert':''}"><div class="sc-val">${risk.threatfox_hits??0}</div><div class="sc-key">ThreatFox IOCs</div></div>
+      <div class="sc-cell${risk.urlhaus_hits>0?' alert':''}"><div class="sc-val">${risk.urlhaus_hits??0}</div><div class="sc-key">URLhaus hits</div></div>
+    </div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-footer-meta">
+      <div>Generado: ${now} · Modelo: Gemini 2.0 Flash</div>
+      <div>Plataforma: VSAS Threat Intelligence Platform</div>
+      <div style="margin-top:3px;color:#1e293b">Clasificación: TLP:${tlpLabel} — Solo uso interno</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:9px;color:#2d3748;font-family:monospace">01</div>
+      <div style="font-size:6.5px;color:#1e293b;margin-top:3px;font-family:monospace">ID: TIR-IA-${h(p.target).replace(/[^a-z0-9]/gi,'').toUpperCase().slice(0,8)}</div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="pg-header">
+  <span class="pg-logo-sm">&#9672; VSAS Ciberinteligencia</span>
+  <span class="pg-center">${h(p.target)}</span>
+  <span class="pg-tlp-sm">TLP:${tlpLabel}</span>
+</div>
+<div class="content">
+
+  <!-- AI intro banner -->
+  <div class="ai-intro">
+    <div class="ai-intro-icon">&#9670;</div>
+    <div class="ai-intro-text">
+      El presente informe fue <strong>redactado y analizado por Gemini 2.0 Flash</strong>, modelo de inteligencia artificial de Google,
+      a partir de los datos recopilados por la plataforma VSAS Ciberinteligencia el ${now}.
+      El análisis integra hallazgos de VirusTotal, URLScan, Mandiant, AlienVault OTX, ThreatFox, URLhaus y datos WHOIS/Geo.
+      <strong>Clasificación: TLP:${tlpLabel} — Solo uso interno.</strong>
+    </div>
+  </div>
+
+  <!-- AI Narrative -->
+  <div class="ai-narrative">
+    ${aiHtml}
+  </div>
+
+  <!-- Appendix -->
+  ${(iocRows.length || vtRows.length || portRows.length) ? `
+  <div class="appendix-title">&#9472;&#9472; Apéndice técnico — Datos de soporte</div>
+
+  ${iocRows.length ? `
+  <div class="sec">
+    <div class="sec-hd"><span class="sec-num">A.1</span><span class="sec-title">Indicadores de Compromiso (${iocRows.length} IOCs)</span></div>
+    <div class="sec-bd">${tbl(['','Tipo','Valor / Hash','Fuente','Contexto'], iocRows)}</div>
+  </div>` : ''}
+
+  ${vtRows.length ? `
+  <div class="sec page-break">
+    <div class="sec-hd"><span class="sec-num">A.2</span><span class="sec-title">Detecciones VirusTotal (${vtRows.length} motores)</span></div>
+    <div class="sec-bd">${tbl(['Motor AV','Firma detectada','Categoría'], vtRows)}</div>
+  </div>` : ''}
+
+  ${portRows.length ? `
+  <div class="sec">
+    <div class="sec-hd"><span class="sec-num">A.3</span><span class="sec-title">Puertos abiertos (${portRows.length} detectados)</span></div>
+    <div class="sec-bd">${tbl(['Puerto','Servicio','Banner','Riesgo'], portRows)}</div>
+  </div>` : ''}
+
+  ${screenshotUrl ? `
+  <div class="sec">
+    <div class="sec-hd"><span class="sec-num">A.4</span><span class="sec-title">Captura del sitio analizado</span></div>
+    <div class="sec-bd">
+      <div style="border:1px solid #e2e8f0;border-radius:4px;overflow:hidden;max-height:220px">
+        <img src="${screenshotUrl}" alt="Captura URLScan" style="display:block;width:100%;height:220px;object-fit:cover;object-position:top">
+      </div>
+    </div>
+  </div>` : ''}
+  ` : ''}
+
+  <hr class="divider">
+  <div class="report-footer">
+    <span>Threat Intelligence Report (IA) · TLP:${tlpLabel} · Generado con Gemini 2.0 Flash</span>
+    <span>${now}</span>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#0d1117dd;z-index:9997;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="color:#7c3aed;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando informe IA…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Diseñado por Gemini 2.0 Flash</span></div>';
+  document.body.appendChild(overlay);
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:0;left:-900px;width:816px;height:20000px;border:none;z-index:9998;background:#fff';
+  document.body.appendChild(iframe);
+  try {
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+    await new Promise(r => setTimeout(r, 1400));
+    const body = iframe.contentDocument.body;
+    const docEl = iframe.contentDocument.documentElement;
+    const contentH = Math.max(body.scrollHeight, docEl.scrollHeight, 1056);
+    iframe.style.height = contentH + 'px';
+    body.style.cssText = 'width:816px;min-width:816px;overflow-x:hidden';
+    await new Promise(r => setTimeout(r, 200));
+    await html2pdf().set({
+      margin: 0,
+      filename: `TIR-IA-${p.target.replace(/[^a-z0-9]/gi,'_')}.pdf`,
+      image: { type: 'jpeg', quality: 0.95 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        windowWidth: 816,
+        scrollX: 0,
+        scrollY: 0,
+        width: 816,
+        imageTimeout: 20000,
+      },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: ['.sec', 'tr'] },
+    }).from(body).save();
+  } finally {
+    document.body.removeChild(iframe);
+    document.body.removeChild(overlay);
   }
 }
 
