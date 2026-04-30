@@ -108,15 +108,15 @@ def report_phishreport(url: str) -> dict:
 # ── PhishLabs — Crear Caso (Credential Theft / Phishing) ─────────────────────
 
 PHISHLABS_BRANDS = {
-    "Bancolombia":          "Bancolombia",
-    "Nequi":                "Nequi",
-    "Wenia":                "Wenia",
-    "Wompi":                "Wompi",
-    "Banistmo":             "Banistmo Panama",
-    "BAM Guatemala":        "Banco Agromercantil de Guatemala BAM",
-    "Banco Agricola BAES":  "Banco Agricola BAES",
-    "Financomer":           "Financomer",
-    "Cibest":               "Cibest",
+    "Banco Agricola BAES":                  "Banco Agricola BAES",
+    "Banco Agromercantil de Guatemala (BAM)": "Banco Agromercantil de Guatemala (BAM)",
+    "Bancolombia":                          "Bancolombia",
+    "Banistmo (Panamá)":                    "Banistmo (Panamá)",
+    "Cibest":                               "Cibest",
+    "Financomer":                           "Financomer",
+    "Nequi":                                "Nequi",
+    "WENIA":                                "WENIA",
+    "WOMPI":                                "WOMPI",
 }
 
 PHISHLABS_CASE_TYPES = {
