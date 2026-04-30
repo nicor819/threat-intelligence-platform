@@ -138,7 +138,7 @@ const STEPS = [
   { name: 'Mandiant',        icon: '○' },
   { name: 'SOCRadar',        icon: '○' },
   { name: 'Host Tracker',    icon: '○' },
-  { name: 'PhishLabs',       icon: '○' },
+  { name: 'Fortra',          icon: '○' },
   { name: 'Grafo',           icon: '○' },
 ];
 
@@ -215,7 +215,7 @@ function renderProfile(p) {
   // ⑧  Host Tracker
   if (p.host_tracker) platMain.appendChild(hostTrackerEl(p.host_tracker));
 
-  // ⑨  PhishLabs
+  // ⑨  Fortra
   if (p.phishlabs) platMain.appendChild(phishlabsEl(p.phishlabs));
 
   // ⑩  Panel de reporte
@@ -257,8 +257,8 @@ function riskHeaderEl(p) {
         ? `<div class="flag-row">${risk.geo_flags.map(f => `<span class="flag-pill">${f}</span>`).join('')}</div>`
         : ''}
     </div>
-    <button class="btn-tir" onclick="downloadReport(window._currentProfile)" title="Descargar Threat Intelligence Report">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+    <button class="btn-tir" id="btn-tir-main" onclick="downloadReport(window._currentProfile)" title="Descargar Threat Intelligence Report">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Descargar TIR
     </button>
     <a class="btn-whatsapp" href="https://wa.me/573008876817?text=${encodeURIComponent('Hola, quisiera más información sobre este sitio analizado: ' + (p.original_url || p.target))}" target="_blank" title="Consultar con Mensaje Sospechoso">
@@ -903,9 +903,9 @@ function urlscanEl(us) {
   return s;
 }
 
-// ── PhishLabs ─────────────────────────────────────────────────────────────────
+// ── Fortra ────────────────────────────────────────────────────────────────────
 function phishlabsEl(pl) {
-  const s  = section('PhishLabs');
+  const s  = section('Fortra');
   const bd = s.querySelector('.section-bd');
 
   if (pl.error) {
@@ -930,7 +930,7 @@ function phishlabsEl(pl) {
 
   if (!cases.length) {
     const note = el('p', 'no-data');
-    note.textContent = `Sin casos existentes en PhishLabs para este indicador (revisados ${scanned} casos recientes).`;
+    note.textContent = `Sin casos existentes en Fortra para este indicador (revisados ${scanned} casos recientes).`;
     bd.appendChild(note);
     return s;
   }
@@ -941,7 +941,7 @@ function phishlabsEl(pl) {
   cases.forEach(c => {
     const statusCls = { New:'risk-dot-high', Assigned:'risk-dot-high', Closed:'risk-dot-clean',
                         Rejected:'risk-dot-info', Duplicate:'risk-dot-medium' }[c.case_status] || 'risk-dot-info';
-    const caseUrl = `https://caseapi.phishlabs.com/v1/data/cases/${c.case_id}`;
+    const caseUrl = `https://platform.fortra.com/drp/pages/incidents/search`;
     addRow(t, [
       `<a href="${caseUrl}" target="_blank" style="color:var(--text-2);font-size:.75rem">${c.case_number || '—'}</a>`,
       `<span style="font-size:.78rem">${esc((c.title||'').slice(0,60))}${c.title?.length>60?'…':''}</span>`,
@@ -958,7 +958,7 @@ function phishlabsEl(pl) {
         label(bd, `Screenshot – Caso #${c.case_number}`);
         const wrap = el('div', 'urlscan-screenshot-wrap'); wrap.style.marginBottom = '.75rem';
         const img  = document.createElement('img');
-        img.src = src.screenshot; img.alt = 'PhishLabs screenshot';
+        img.src = src.screenshot; img.alt = 'Fortra screenshot';
         img.className = 'urlscan-screenshot'; img.loading = 'lazy';
         img.onclick = () => window.open(src.screenshot, '_blank');
         wrap.appendChild(img);
@@ -1024,8 +1024,8 @@ function reportPanelEl(targetUrl) {
   });
   bd.appendChild(btnRow);
 
-  // ── Crear caso en PhishLabs ──────────────────────────────────────────────
-  label(bd, 'Crear caso en PhishLabs');
+  // ── Crear caso en Fortra ─────────────────────────────────────────────────
+  label(bd, 'Crear caso en Fortra');
 
   // Cargar opciones del servidor
   fetch('/report/config').then(r => r.json()).then(cfg => {
@@ -1230,8 +1230,11 @@ function hostTrackerEl(ht) {
 }
 
 // ── TIR Report Generator ──────────────────────────────────────────────────────
-function downloadReport(p) {
+async function downloadReport(p) {
   if (!p) return;
+  const btn = document.getElementById('btn-tir-main');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;animation:spin .7s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Generando…'; }
+
   const risk   = p.risk_summary || {};
   const whois  = p.whois        || {};
   const geo    = p.geolocation  || {};
@@ -1303,6 +1306,13 @@ function downloadReport(p) {
   const uhRows  = (intel.urlhaus||[]).map(u=>`<tr><td style="font-family:monospace;font-size:9px;word-break:break-all">${h(u.url)}</td><td>${chip(u.url_status, u.url_status==='online'?'#c0392b':'#555')}</td><td>${h(u.threat||'—')}</td></tr>`);
   const portRows= (ht.open_ports||[]).map(pp=>{const risk2=[21,23,445,3389,3306,5432,6379,27017,1433].includes(pp.port);return`<tr><td style="font-family:monospace;font-weight:700">${pp.port}</td><td>${chip(pp.service, risk2?'#d35400':'#555')}</td><td style="font-size:9px;color:#888">${h(pp.banner||'—')}</td><td>${risk2?chip('alto riesgo','#c0392b'):chip('normal','#27ae60')}</td></tr>`;});
 
+  // ── screenshot proxied ──
+  const screenshotUrl = us.screenshot_url
+    ? `/proxy/img?url=${encodeURIComponent(us.screenshot_url)}`
+    : null;
+
+  const tlpLabel = risk.level === 'CLEAN' || risk.level === 'LOW' ? 'GREEN' : risk.level === 'MEDIUM' ? 'AMBER' : 'RED';
+
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1310,186 +1320,178 @@ function downloadReport(p) {
 <title>TIR — ${h(p.target)}</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;color:#1a1a1a;background:#fff;line-height:1.6}
+body{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#1a1a2e;background:#fff;line-height:1.6;width:816px}
 
-/* ── print bar ── */
-.pbar{position:fixed;top:0;left:0;right:0;background:#111;color:#fff;padding:9px 24px;display:flex;align-items:center;justify-content:space-between;font-size:11px;z-index:999;gap:12px}
-.pbar-info{display:flex;align-items:center;gap:10px}
-.pbar button{background:#fff;color:#111;border:none;padding:5px 14px;border-radius:3px;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.03em}
-body{padding-top:40px}
-@media print{.pbar{display:none!important}body{padding-top:0}}
-
-/* ── cover ── */
-.cover{padding:44px 56px 32px;border-bottom:4px solid #1a1a1a;page-break-after:always}
-.cover-meta{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
-.tlp{display:inline-block;background:${tlpColor};color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:2px}
-.cover-right{text-align:right;font-size:9px;color:#666;line-height:1.8}
-.report-type{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888;margin-bottom:6px}
-.cover-target{font-size:28px;font-weight:800;color:#111;word-break:break-all;margin-bottom:4px;line-height:1.2}
-.cover-orig{font-size:10px;color:#888;margin-bottom:22px;word-break:break-all}
-
-/* ── risk badge ── */
-.risk-block{display:flex;align-items:center;gap:20px;margin-bottom:20px}
-.risk-score-box{border:3px solid ${rc};border-radius:6px;padding:10px 18px;text-align:center;min-width:80px}
-.risk-num{font-size:34px;font-weight:900;color:${rc};line-height:1}
-.risk-denom{font-size:9px;color:${rc};opacity:.6}
-.risk-level-text{font-size:15px;font-weight:800;color:${rc};text-transform:uppercase;letter-spacing:.08em}
-.risk-label-sm{font-size:8.5px;color:#888;text-transform:uppercase;letter-spacing:.08em}
-
-/* ── scorecard grid ── */
-.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
-.sc-cell{background:#f6f6f6;border:1px solid #e4e4e4;border-radius:4px;padding:8px 10px}
-.sc-val{font-size:13px;font-weight:800;color:#111}
-.sc-key{font-size:7.5px;text-transform:uppercase;letter-spacing:.07em;color:#888;margin-top:2px}
+/* ── COVER ── */
+.cover{width:816px;min-height:1056px;background:#0d1117;display:flex;flex-direction:column;page-break-after:always;position:relative;overflow:hidden}
+.cover-noise{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' x='0' y='0' fill='%23ffffff08'/%3E%3Crect width='1' height='1' x='2' y='2' fill='%23ffffff05'/%3E%3C/svg%3E");pointer-events:none}
+.cover-accent{position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#e53935 0%,#ff7043 40%,#ffd600 75%,#00bcd4 100%)}
+.cover-top{display:flex;justify-content:space-between;align-items:flex-start;padding:38px 52px 0;position:relative;z-index:1}
+.cover-logo{display:flex;flex-direction:column;gap:4px}
+.cover-logo-mark{font-size:16px;font-weight:900;color:#fff;letter-spacing:-.02em}
+.cover-logo-sub{font-size:7px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#4a5568}
+.cover-classification{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.tlp{font-size:7.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;padding:4px 12px;border-radius:2px;color:#fff;background:${tlpColor}}
+.doc-type{font-size:7px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#4a5568}
+.cover-divider{margin:30px 52px 0;height:1px;background:linear-gradient(90deg,#e5393520,#e5393580,#e5393520);position:relative;z-index:1}
+.cover-body{flex:1;padding:32px 52px 0;position:relative;z-index:1}
+.cover-eyebrow{font-size:7px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#4a90e2;margin-bottom:10px}
+.cover-target{font-size:28px;font-weight:800;color:#e8eaed;word-break:break-all;line-height:1.2;margin-bottom:6px;font-family:"Courier New",monospace}
+.cover-orig{font-size:8.5px;color:#4a5568;margin-bottom:30px;word-break:break-all;font-family:monospace}
+.cover-risk-band{display:flex;align-items:stretch;gap:0;margin-bottom:28px;border:1px solid #1e293b;border-radius:6px;overflow:hidden}
+.risk-score-box{background:${rc}15;border-right:1px solid #1e293b;padding:20px 28px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;min-width:100px}
+.risk-score-num{font-size:36px;font-weight:900;color:${rc};line-height:1;font-family:"Courier New",monospace}
+.risk-score-den{font-size:8px;color:${rc};opacity:.6;letter-spacing:.1em}
+.risk-score-label{font-size:7px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#4a5568;margin-top:4px}
+.risk-detail{padding:18px 22px;flex:1}
+.risk-level-badge{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px}
+.risk-level-dot{width:8px;height:8px;border-radius:50%;background:${rc};flex-shrink:0}
+.risk-level-text{font-size:15px;font-weight:900;color:${rc};text-transform:uppercase;letter-spacing:.08em}
+.risk-desc{font-size:9px;color:#8892a4;line-height:1.6;max-width:420px}
+.sc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:20px}
+.sc-cell{background:#111827;border:1px solid #1e293b;border-radius:4px;padding:10px 12px}
+.sc-cell.alert{border-color:${rc}50;background:${rc}0a}
+.sc-val{font-size:13px;font-weight:800;color:#e8eaed;font-family:"Courier New",monospace}
 .sc-cell.alert .sc-val{color:${rc}}
+.sc-key{font-size:6.5px;text-transform:uppercase;letter-spacing:.1em;color:#4a5568;margin-top:3px}
+.flags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:18px}
+.flag-chip{font-size:7px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:2px;background:#ffd60012;border:1px solid #ffd60040;color:#ffd600}
+.cover-screenshot-wrap{margin:0 0 0;border-radius:6px;overflow:hidden;border:1px solid #1e293b;max-height:220px}
+.cover-screenshot-wrap img{display:block;width:100%;object-fit:cover;object-position:top}
+.cover-screenshot-label{font-size:6.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#4a5568;margin-bottom:6px}
+.cover-footer{padding:24px 52px 28px;position:relative;z-index:1;border-top:1px solid #1e293b;margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end}
+.cover-footer-meta{font-size:7px;color:#2d3748;line-height:2}
+.cover-footer-pg{font-size:9px;color:#2d3748;font-family:monospace}
 
-.flags{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
-.flag-chip{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:2px;background:#fef3cd;border:1px solid #f0c040;color:#7a5c00}
+/* ── PAGE HEADER (content pages) ── */
+.pg-header{display:flex;justify-content:space-between;align-items:center;padding:20px 52px 14px;background:#0d1117;border-bottom:1px solid #1e293b}
+.pg-logo-sm{font-size:11px;font-weight:900;color:#e8eaed;letter-spacing:-.01em}
+.pg-center{font-size:6.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#4a5568;font-family:monospace;max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pg-tlp-sm{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;background:${tlpColor};color:#fff;padding:2px 8px;border-radius:2px}
 
-/* ── content ── */
-.content{padding:0 56px 56px;max-width:900px;margin:0 auto}
+/* ── CONTENT ── */
+.content{padding:22px 52px 56px;background:#fff}
 
-/* ── section ── */
-.sec{margin-top:30px;page-break-inside:avoid}
-.sec-hd{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid #1a1a1a;padding-bottom:5px;margin-bottom:12px}
-.sec-num{font-size:9px;font-weight:800;letter-spacing:.1em;color:#888;min-width:18px}
-.sec-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#1a1a1a}
-.sec-bd{padding-left:28px}
-
-/* ── sub-label ── */
-.sl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin:12px 0 5px;padding-bottom:3px;border-bottom:1px solid #ececec}
+/* ── SECTION ── */
+.sec{margin-top:22px;page-break-inside:avoid}
+.sec-hd{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid #0d1117}
+.sec-num{font-size:7.5px;font-weight:800;letter-spacing:.12em;color:#4a90e2;font-family:monospace;min-width:22px}
+.sec-title{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#0d1117}
+.sec-bd{padding-left:32px}
+.sl{font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#94a3b8;margin:12px 0 5px;padding-bottom:3px;border-bottom:1px solid #f1f5f9}
 .sl:first-child{margin-top:0}
 
-/* ── table ── */
-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:4px}
-th{text-align:left;font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#999;padding:4px 8px;border-bottom:2px solid #e0e0e0}
-td{padding:5px 8px;border-bottom:1px solid #f2f2f2;vertical-align:top;color:#222}
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;font-size:9px;margin-bottom:4px}
+th{text-align:left;font-size:6.5px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;padding:5px 8px;border-bottom:2px solid #e2e8f0;background:#f8fafc}
+td{padding:5px 8px;border-bottom:1px solid #f1f5f9;vertical-align:top;color:#1e293b}
+tr:hover td{background:#f8fafc}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:#fafafa}
+table.kv td.k{color:#64748b;width:150px;white-space:nowrap;font-size:8.5px}
+table.kv td.v{color:#0f172a;word-break:break-all}
 
-/* ── kv table ── */
-table.kv td.k{color:#777;width:145px;white-space:nowrap;font-size:9px}
-table.kv td.v{color:#111;word-break:break-all}
-
-/* ── findings / recommendations ── */
+/* ── LISTS ── */
 .finding-list{list-style:none;padding:0}
-.finding-list li{padding:6px 0 6px 18px;border-bottom:1px solid #f2f2f2;font-size:10px;position:relative}
-.finding-list li::before{content:"▸";position:absolute;left:2px;color:${rc};font-size:10px}
+.finding-list li{padding:6px 0 6px 18px;border-bottom:1px solid #f1f5f9;font-size:9.5px;position:relative;color:#1e293b}
+.finding-list li::before{content:"▶";position:absolute;left:0;color:${rc};font-size:7px;top:8px}
 .finding-list li:last-child{border-bottom:none}
 .rec-list{list-style:none;padding:0;counter-reset:rec}
-.rec-list li{padding:6px 0 6px 22px;border-bottom:1px solid #f2f2f2;font-size:10px;position:relative;counter-increment:rec}
-.rec-list li::before{content:counter(rec);position:absolute;left:2px;background:#1a1a1a;color:#fff;font-size:7px;font-weight:800;width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;top:8px}
+.rec-list li{padding:7px 0 7px 26px;border-bottom:1px solid #f1f5f9;font-size:9.5px;position:relative;counter-increment:rec;color:#1e293b}
+.rec-list li::before{content:counter(rec);position:absolute;left:0;background:#0d1117;color:#4a90e2;font-size:7px;font-weight:800;width:16px;height:16px;border-radius:3px;display:flex;align-items:center;justify-content:center;top:8px;font-family:monospace}
 .rec-list li:last-child{border-bottom:none}
 
-/* ── cert bar ── */
-.cert-bar{height:6px;border-radius:3px;background:#eee;margin:6px 0 3px;overflow:hidden}
-.cert-fill{height:100%;border-radius:3px}
-
-/* ── two-col ── */
+/* ── MISC ── */
+.cert-bar{height:4px;border-radius:2px;background:#e2e8f0;margin:5px 0 2px;overflow:hidden}
+.cert-fill{height:100%;border-radius:2px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-
-/* ── nil ── */
-.nil{font-size:9px;color:#bbb;font-style:italic;padding:4px 0}
-
-/* ── divider ── */
-.divider{border:none;border-top:1px solid #ececec;margin:20px 0}
-
-/* ── footer ── */
-.footer{margin-top:40px;padding-top:10px;border-top:2px solid #1a1a1a;display:flex;justify-content:space-between;font-size:8.5px;color:#999}
-
-/* ── page break ── */
+.nil{font-size:9px;color:#cbd5e1;font-style:italic;padding:4px 0}
+.divider{border:none;border-top:1px solid #e2e8f0;margin:20px 0}
 .page-break{page-break-before:always}
-
-@media print{
-  .sec{page-break-inside:avoid}
-  .cover{page-break-after:always}
-  .content{padding:0 40px 40px}
-}
+.report-footer{display:flex;justify-content:space-between;font-size:7px;color:#94a3b8;padding-top:10px;border-top:1px solid #e2e8f0;margin-top:10px}
+.mono{font-family:"Courier New",monospace;font-size:9px}
 </style>
 </head>
 <body>
 
-<!-- print bar -->
-<div class="pbar no-print">
-  <div class="pbar-info">
-    <span style="font-weight:700">TIR</span>
-    <span style="color:#aaa">|</span>
-    <span>${h(p.target)}</span>
-    <span style="color:#555;font-size:9px">${now}</span>
-  </div>
-  <button onclick="window.print()">⬇ Guardar como PDF</button>
-</div>
-
-<!-- ════════════════ COVER PAGE ════════════════ -->
+<!-- ════════════════ COVER ════════════════ -->
 <div class="cover">
-  <div class="cover-meta">
-    <div>
-      <div class="report-type">Threat Intelligence Report</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
-        <span class="tlp">TLP: ${risk.level === 'CLEAN' ? 'GREEN' : risk.level === 'LOW' ? 'GREEN' : risk.level === 'MEDIUM' ? 'AMBER' : 'RED'}</span>
-        <span style="font-size:8.5px;color:#888">Clasificación basada en nivel de riesgo</span>
+  <div class="cover-noise"></div>
+  <div class="cover-accent"></div>
+
+  <div class="cover-top">
+    <div class="cover-logo">
+      <div class="cover-logo-mark">◈ Ciberinteligencia</div>
+      <div class="cover-logo-sub">Threat Intelligence Platform</div>
+    </div>
+    <div class="cover-classification">
+      <span class="tlp">TLP:${tlpLabel} · CONFIDENCIAL</span>
+      <span class="doc-type">Threat Intelligence Report</span>
+    </div>
+  </div>
+
+  <div class="cover-divider"></div>
+
+  <div class="cover-body">
+    <div class="cover-eyebrow">Indicador analizado</div>
+    <div class="cover-target">${h(p.target)}</div>
+    ${p.original_url && p.original_url !== p.target
+      ? `<div class="cover-orig">${h(p.original_url)}</div>`
+      : '<div style="height:14px"></div>'}
+
+    <div class="cover-risk-band">
+      <div class="risk-score-box">
+        <div class="risk-score-num">${risk.score??'—'}</div>
+        <div class="risk-score-den">/100</div>
+        <div class="risk-score-label">Risk Score</div>
+      </div>
+      <div class="risk-detail">
+        <div class="risk-level-badge">
+          <span class="risk-level-dot"></span>
+          <span class="risk-level-text">${risk.level||'—'}</span>
+        </div>
+        <div class="risk-desc">${
+          risk.level==='CRITICAL' ? 'Indicador activamente malicioso confirmado por múltiples fuentes de inteligencia. Se requiere acción de bloqueo inmediata.' :
+          risk.level==='HIGH'     ? 'Alta probabilidad de actividad maliciosa detectada. Se recomienda bloqueo preventivo y revisión de logs.' :
+          risk.level==='MEDIUM'   ? 'Actividad sospechosa detectada en una o más fuentes. Monitoreo activo recomendado.' :
+          risk.level==='LOW'      ? 'Riesgo bajo. Sin detecciones significativas en las fuentes de inteligencia consultadas.' :
+                                    'Sin detecciones en las fuentes de inteligencia consultadas. Sin indicios de actividad maliciosa.'
+        }</div>
       </div>
     </div>
-    <div class="cover-right">
-      <div>Fecha de emisión: <strong>${now}</strong></div>
-      <div>Schema versión: ${h(p.schema_version||'—')}</div>
+
+    <div class="sc-grid">
+      <div class="sc-cell${vt.malicious>0?' alert':''}"><div class="sc-val">${h(risk.vt_verdict||'N/A')}</div><div class="sc-key">VirusTotal</div></div>
+      <div class="sc-cell${man.mscore>=50?' alert':''}"><div class="sc-val">${man.mscore!=null?man.mscore:h(risk.mandiant_verdict||'N/A')}</div><div class="sc-key">Mandiant MScore</div></div>
+      <div class="sc-cell${vs.malicious?' alert':''}"><div class="sc-val">${vs.malicious?'MALICIOUS':'Clean'}</div><div class="sc-key">URLScan.io</div></div>
+      <div class="sc-cell${risk.otx_pulses>0?' alert':''}"><div class="sc-val">${risk.otx_pulses??0}</div><div class="sc-key">OTX Pulses</div></div>
+      <div class="sc-cell${risk.threatfox_hits>0?' alert':''}"><div class="sc-val">${risk.threatfox_hits??0}</div><div class="sc-key">ThreatFox IOCs</div></div>
+      <div class="sc-cell${risk.urlhaus_hits>0?' alert':''}"><div class="sc-val">${risk.urlhaus_hits??0}</div><div class="sc-key">URLhaus hits</div></div>
+      <div class="sc-cell"><div class="sc-val">${iocs.length}</div><div class="sc-key">IOCs totales</div></div>
+      <div class="sc-cell${(ht.open_ports||[]).length>0?' alert':''}"><div class="sc-val">${(ht.open_ports||[]).length}</div><div class="sc-key">Puertos abiertos</div></div>
+    </div>
+
+    ${riskFlags.length ? `<div class="flags">${riskFlags.map(f=>`<span class="flag-chip">${h(f)}</span>`).join('')}</div>` : ''}
+
+    ${screenshotUrl ? `
+    <div class="cover-screenshot-label">Captura del sitio analizado</div>
+    <div class="cover-screenshot-wrap"><img src="${screenshotUrl}" alt="Screenshot"></div>` : ''}
+  </div>
+
+  <div class="cover-footer">
+    <div class="cover-footer-meta">
+      <div>Generado: ${now}</div>
       <div>Plataforma: Threat Intelligence Platform</div>
     </div>
+    <div class="cover-footer-pg">01</div>
   </div>
-
-  <div class="report-type" style="margin-bottom:6px">Indicador analizado</div>
-  <div class="cover-target">${h(p.target)}</div>
-  ${p.original_url && p.original_url !== p.target ? `<div class="cover-orig">URL original: ${h(p.original_url)}</div>` : '<div style="margin-bottom:22px"></div>'}
-
-  <div class="risk-block">
-    <div class="risk-score-box">
-      <div class="risk-num">${risk.score??'—'}</div>
-      <div class="risk-denom">/100</div>
-    </div>
-    <div>
-      <div class="risk-label-sm">Nivel de riesgo</div>
-      <div class="risk-level-text">${risk.level||'—'}</div>
-      <div style="font-size:9px;color:#666;margin-top:4px;max-width:380px">
-        ${risk.level === 'CRITICAL' ? 'Indicador activamente malicioso confirmado por múltiples fuentes. Acción inmediata requerida.' :
-          risk.level === 'HIGH'     ? 'Alta probabilidad de actividad maliciosa. Se recomienda bloqueo preventivo.' :
-          risk.level === 'MEDIUM'   ? 'Actividad sospechosa detectada. Monitoreo activo recomendado.' :
-          risk.level === 'LOW'      ? 'Riesgo bajo. Sin detecciones significativas.' :
-                                      'Sin detecciones en las fuentes consultadas.'}
-      </div>
-    </div>
-  </div>
-
-  <div class="sc-grid">
-    <div class="sc-cell${vt.malicious>0?' alert':''}">
-      <div class="sc-val">${h(risk.vt_verdict||'N/A')}</div><div class="sc-key">VirusTotal</div>
-    </div>
-    <div class="sc-cell${man.mscore>=50?' alert':''}">
-      <div class="sc-val">${man.mscore!=null?`MScore ${man.mscore}`:h(risk.mandiant_verdict||'N/A')}</div><div class="sc-key">Mandiant</div>
-    </div>
-    <div class="sc-cell${vs.malicious?' alert':''}">
-      <div class="sc-val">${vs.malicious?'⚠ MALICIOUS':'Clean'}</div><div class="sc-key">URLScan.io</div>
-    </div>
-    <div class="sc-cell${risk.otx_pulses>0?' alert':''}">
-      <div class="sc-val">${risk.otx_pulses??0}</div><div class="sc-key">OTX Pulses</div>
-    </div>
-    <div class="sc-cell${risk.threatfox_hits>0?' alert':''}">
-      <div class="sc-val">${risk.threatfox_hits??0}</div><div class="sc-key">ThreatFox IOCs</div>
-    </div>
-    <div class="sc-cell${risk.urlhaus_hits>0?' alert':''}">
-      <div class="sc-val">${risk.urlhaus_hits??0}</div><div class="sc-key">URLhaus hits</div>
-    </div>
-    <div class="sc-cell">
-      <div class="sc-val">${iocs.length}</div><div class="sc-key">IOCs totales</div>
-    </div>
-    <div class="sc-cell${(ht.open_ports||[]).length>0?' alert':''}">
-      <div class="sc-val">${(ht.open_ports||[]).length}</div><div class="sc-key">Puertos abiertos</div>
-    </div>
-  </div>
-
-  ${riskFlags.length ? `<div class="flags">${riskFlags.map(f=>`<span class="flag-chip">${h(f)}</span>`).join('')}</div>` : ''}
 </div>
 
 <!-- ════════════════ CONTENT ════════════════ -->
+<div class="pg-header">
+  <span class="pg-logo-sm">◈ Ciberinteligencia</span>
+  <span class="pg-center">${h(p.target)}</span>
+  <span class="pg-tlp-sm">TLP:${tlpLabel}</span>
+</div>
 <div class="content">
 
 <!-- 1. RESUMEN EJECUTIVO -->
@@ -1661,17 +1663,46 @@ ${sec(p.graph_png_url ? '08' : '07', 'Recomendaciones', `
 `)}
 
 <hr class="divider">
-<div class="footer">
-  <span>Threat Intelligence Report — Generado automáticamente · Clasificación: TLP ${risk.level === 'CLEAN' || risk.level === 'LOW' ? 'GREEN' : risk.level === 'MEDIUM' ? 'AMBER' : 'RED'}</span>
+<div class="report-footer">
+  <span>Threat Intelligence Report · Clasificación: TLP:${tlpLabel} · Generado automáticamente</span>
   <span>${now}</span>
 </div>
 </div>
 </body>
 </html>`;
 
-  const w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
+  // Overlay oscuro que cubre la UI mientras se genera el PDF
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#0d1117cc;z-index:9997;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = '<div style="color:#4a90e2;font-size:13px;font-family:monospace;letter-spacing:.08em">Generando PDF…</div>';
+  document.body.appendChild(overlay);
+
+  // iframe en posición 0,0 para que html2canvas lo capture correctamente
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:0;left:0;width:816px;height:100vh;border:none;z-index:9998;opacity:0;pointer-events:none';
+  document.body.appendChild(iframe);
+  try {
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+    await new Promise(r => setTimeout(r, 500));
+    const body = iframe.contentDocument.body;
+    body.style.width = '816px';
+    await html2pdf().set({
+      margin: 0,
+      filename: `TIR-${p.target.replace(/[^a-z0-9]/gi,'_')}.pdf`,
+      image: { type: 'jpeg', quality: 0.92 },
+      html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false, windowWidth: 816, scrollX: 0, scrollY: 0 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+    }).from(body).save();
+  } finally {
+    document.body.removeChild(iframe);
+    document.body.removeChild(overlay);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar TIR';
+    }
+  }
 }
 
 // ── Error ─────────────────────────────────────────────────────────────────────

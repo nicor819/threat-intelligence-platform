@@ -759,21 +759,32 @@ tr:hover .ioc-copy { opacity: 1; }
 /* ── TIR download button ─────────────────────────────────────── */
 .btn-tir {
   flex-shrink: 0;
-  height: 30px;
-  padding: 0 0.85rem;
-  background: transparent;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  height: 36px;
+  padding: 0 1.1rem;
+  background: #E8501A;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
   font-family: var(--font);
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s;
+  letter-spacing: .03em;
+  box-shadow: 0 0 0 0 rgba(232,80,26,.5);
+  transition: background .15s, box-shadow .15s, transform .1s;
+  animation: tir-pulse 2.4s ease-in-out infinite;
 }
-.btn-tir { display: inline-flex; align-items: center; gap: .4rem; }
-.btn-tir:hover { border-color: var(--border-2); color: var(--text); }
+.btn-tir:hover:not(:disabled) { background: #c93f0d; transform: translateY(-1px); box-shadow: 0 3px 10px rgba(232,80,26,.4); animation: none; }
+.btn-tir:active { transform: translateY(0); }
+.btn-tir:disabled { opacity: .6; cursor: default; animation: none; }
+@keyframes tir-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(232,80,26,.45); }
+  50%      { box-shadow: 0 0 0 6px rgba(232,80,26,0); }
+}
 
 /* ── WhatsApp button ─────────────────────────────────────────── */
 .btn-whatsapp {

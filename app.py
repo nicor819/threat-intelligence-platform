@@ -151,6 +151,20 @@ def serve_output(filename: str):
     return send_from_directory(OUTPUT, filename)
 
 
+@app.route("/proxy/img")
+def proxy_img():
+    """Proxy de imágenes para html2pdf (evita bloqueos CORS en canvas)."""
+    import requests as _req
+    url = request.args.get("url", "")
+    if not url or not url.startswith("https://"):
+        return "", 400
+    try:
+        r = _req.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        return Response(r.content, content_type=r.headers.get("Content-Type", "image/jpeg"))
+    except Exception:
+        return "", 404
+
+
 # ── Reporting endpoints ───────────────────────────────────────────────────────
 
 REPORT_HANDLERS = {
@@ -197,7 +211,7 @@ def report_phishlabs_case():
 
 @app.route("/report/config")
 def report_config():
-    """Devuelve opciones disponibles para el formulario de PhishLabs."""
+    """Devuelve opciones disponibles para el formulario de Fortra."""
     return jsonify({
         "brands":     list(PHISHLABS_BRANDS.keys()),
         "case_types": list(PHISHLABS_CASE_TYPES.keys()),
@@ -219,7 +233,7 @@ STEPS = [
     ("Mandiant",        "mandiant"),
     ("SOCRadar",        "socradar"),
     ("Host Tracker",    "hosttracker"),
-    ("PhishLabs",       "phishlabs"),
+    ("Fortra",          "phishlabs"),
     ("Grafo",           "graph"),
 ]
 
@@ -282,10 +296,10 @@ def _worker(job_id: str, target: str, original_url: str, q: queue.Queue):
             t.start()
             t.join(timeout=35)  # máximo 35s para no bloquear el análisis
             if t.is_alive():
-                container[0]["error"] = "Timeout al consultar PhishLabs (>35s)"
+                container[0]["error"] = "Timeout al consultar Fortra (>35s)"
             return container[0]
 
-        phishlabs = step("PhishLabs", _phishlabs_query)
+        phishlabs = step("Fortra", _phishlabs_query)
         time.sleep(delay)
 
         profile = ThreatProfile(target)
