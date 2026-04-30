@@ -365,9 +365,9 @@ function riskHeaderEl(p) {
         : ''}
     </div>
     <div class="risk-actions">
-      <button class="btn-ai-analyze" id="btn-ai-main" onclick="generateAIAnalysis(window._currentProfile)" title="Generar análisis con IA (Gemini)">
+      <button class="btn-ai-analyze" id="btn-ai-main" onclick="generateAIAnalysis(window._currentProfile)" title="Generar Informe IA (Gemini 2.0 Flash)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        Análisis IA
+        Informe IA
       </button>
       <button class="btn-reanalyze" onclick="reanalyzeTarget(window._currentProfile)" title="Volver a analizar este indicador">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -1893,10 +1893,10 @@ async function generateAIAnalysis(p) {
 
     p._ai_analysis = data.analysis;
     renderAIAnalysis(aiBody, data.analysis);
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Análisis IA`; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Informe IA`; }
   } catch (e) {
     aiBody.innerHTML = `<p style="color:var(--risk-crit);font-size:.82rem;padding:.5rem 0">${esc(e.message)}</p>`;
-    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Análisis IA`; }
+    if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> Informe IA`; }
     return;
   }
 
@@ -2075,7 +2075,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   </div>
   <div class="cover-divider"></div>
   <div class="cover-body">
-    <div class="cover-eyebrow">Indicador analizado · Análisis IA (Gemini 2.0 Flash)</div>
+    <div class="cover-eyebrow">Threat Intelligence Report · Generado con Gemini 2.0 Flash</div>
     <div class="cover-target">${h(p.target)}</div>
     ${p.original_url && p.original_url !== p.target
       ? `<div class="cover-orig">${h(p.original_url)}</div>`
@@ -2248,7 +2248,7 @@ function aiSectionEl() {
   wrap.innerHTML = `
     <div class="ai-header">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      <span>Análisis de Inteligencia — Gemini 2.0 Flash</span>
+      <span>Informe de Inteligencia — Gemini 2.0 Flash</span>
       <span class="ai-badge">IA</span>
     </div>
     <div class="ai-body"></div>`;

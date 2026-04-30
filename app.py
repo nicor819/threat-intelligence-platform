@@ -273,78 +273,107 @@ def _build_ai_prompt(p: dict) -> str:
     vs    = (us.get("verdicts") or {})
 
     lines = [
-        "Eres un analista senior de ciberinteligencia. Analiza el siguiente perfil de amenaza y genera un informe técnico profesional en español.",
+        "Eres un analista senior de ciberinteligencia de un SOC corporativo.",
+        "Con base en el perfil de amenaza a continuación, redacta un Threat Intelligence Report (TIR) completo en español.",
+        "El informe debe ser profesional, técnico y orientado a la toma de decisiones.",
         "",
-        f"## INDICADOR ANALIZADO: {p.get('target', '?')}",
-        f"- URL original: {p.get('original_url', p.get('target', ''))}",
-        f"- Fecha de análisis: {str(p.get('generated_at', ''))[:16]}",
+        f"INDICADOR: {p.get('target', '?')}",
+        f"URL ORIGINAL: {p.get('original_url', p.get('target', ''))}",
+        f"FECHA DE ANÁLISIS: {str(p.get('generated_at', ''))[:16]}",
         "",
-        "## RESUMEN DE RIESGO",
-        f"- Score integral: {risk.get('score', '?')}/100",
-        f"- Nivel: {risk.get('level', '?')}",
-        f"- VirusTotal: {risk.get('vt_verdict', '?')} ({vt.get('malicious', 0)} motores maliciosos, {vt.get('suspicious', 0)} sospechosos)",
-        f"- URLScan.io: {'MALICIOSO' if vs.get('malicious') else 'Limpio'} (score {vs.get('score', '?')}/100)",
-        f"- Mandiant MScore: {man.get('mscore', 'N/A')} — {man.get('verdict', 'N/A')}",
-        f"- OTX Pulses: {risk.get('otx_pulses', 0)}",
-        f"- ThreatFox IOCs: {risk.get('threatfox_hits', 0)}",
-        f"- URLhaus hits: {risk.get('urlhaus_hits', 0)}",
-        f"- Casos Fortra: {len(pl.get('cases', []))}",
+        "PUNTUACIÓN DE RIESGO:",
+        f"  Score: {risk.get('score', '?')}/100  |  Nivel: {risk.get('level', '?')}",
+        f"  VirusTotal: {risk.get('vt_verdict', '?')} — {vt.get('malicious', 0)} motores maliciosos, {vt.get('suspicious', 0)} sospechosos, {vt.get('harmless', 0)} limpios",
+        f"  URLScan.io: {'MALICIOSO' if vs.get('malicious') else 'Limpio'} (score {vs.get('score', '?')}/100)",
+        f"  Mandiant MScore: {man.get('mscore', 'N/A')} — Veredicto: {man.get('verdict', 'N/A')}",
+        f"  OTX Pulses: {risk.get('otx_pulses', 0)}  |  ThreatFox IOCs: {risk.get('threatfox_hits', 0)}  |  URLhaus: {risk.get('urlhaus_hits', 0)}",
+        f"  SOCRadar Score: {p.get('socradar', {}).get('score', 'N/A')}",
+        f"  Casos Fortra/PhishLabs: {len(pl.get('cases', []))} encontrado(s) en {pl.get('total_searched', 0)} registros revisados",
     ]
 
     if man.get("threat_actors"):
-        lines.append("- Actores de amenaza (Mandiant): " + ", ".join(a.get("name","") for a in man["threat_actors"][:3]))
+        actors = ", ".join(f"{a.get('name','')} ({a.get('country','?')})" for a in man["threat_actors"][:5])
+        lines.append(f"  Actores de amenaza (Mandiant): {actors}")
     if man.get("malware"):
-        lines.append("- Malware asociado: " + ", ".join(m.get("name","") for m in man["malware"][:3]))
+        mal = ", ".join(m.get("name","") for m in man["malware"][:5])
+        lines.append(f"  Familias de malware: {mal}")
 
     lines += [
         "",
-        "## INFRAESTRUCTURA",
-        f"- País: {geo.get('country_code','?')} — {geo.get('country','?')}",
-        f"- Ciudad / Región: {geo.get('city','?')}, {geo.get('region','?')}",
-        f"- ISP: {geo.get('isp','?')}",
-        f"- ASN: {geo.get('asn', whois.get('asn','?'))}",
-        f"- Flags de riesgo: {', '.join(risk.get('geo_flags', [])) or 'Ninguna'}",
-        f"- Registrador: {whois.get('registrar','?')}",
-        f"- Fecha de creación del dominio: {str(whois.get('creation_date',''))[:10] or '?'}",
-        f"- Fecha de expiración: {str(whois.get('expiration_date',''))[:10] or '?'}",
+        "INFRAESTRUCTURA:",
+        f"  País: {geo.get('country_code','?')} — {geo.get('country','?')}  |  Ciudad: {geo.get('city','?')}, {geo.get('region','?')}",
+        f"  ISP: {geo.get('isp','?')}  |  Organización: {geo.get('org','?')}",
+        f"  ASN: {geo.get('asn', whois.get('asn','?'))}  |  Red CIDR: {whois.get('network_cidr','?')}",
+        f"  Flags de riesgo: {', '.join(risk.get('geo_flags', [])) or 'Ninguna'}",
+        f"  Registrador: {whois.get('registrar','?')}  |  Org registrante: {whois.get('registrant_org','?')}",
+        f"  Dominio creado: {str(whois.get('creation_date',''))[:10] or '?'}  |  Expira: {str(whois.get('expiration_date',''))[:10] or '?'}",
     ]
+
+    if whois.get("resolved_ips"):
+        lines.append(f"  IPs resueltas: {', '.join(whois['resolved_ips'][:6])}")
 
     ports = ht.get("open_ports", [])
     if ports:
-        lines.append("- Puertos abiertos: " + ", ".join(f"{pp['port']}/{pp.get('service','?')}" for pp in ports[:8]))
+        lines.append("  Puertos abiertos: " + ", ".join(f"{pp['port']}/{pp.get('service','?')}" for pp in ports[:10]))
 
     cert = ht.get("certificate", {})
     if cert and not cert.get("error"):
-        lines.append(f"- TLS: {'EXPIRADO' if cert.get('expired') else 'Válido'} — Emisor: {cert.get('issuer_org', cert.get('issuer_cn','?'))}")
+        estado = "EXPIRADO" if cert.get("expired") else f"Válido ({cert.get('days_remaining','?')} días restantes)"
+        lines.append(f"  TLS: {estado} — Emisor: {cert.get('issuer_org', cert.get('issuer_cn','?'))} — Subject: {cert.get('subject_cn','?')}")
 
     if iocs:
-        lines += ["", f"## IOCs DETECTADOS ({len(iocs)} total, muestra)"]
-        for ioc in iocs[:12]:
-            lines.append(f"- [{ioc.get('type','?')}] {ioc.get('value','?')} — {ioc.get('source','')}: {ioc.get('context','')}")
+        lines += ["", f"IOCs DETECTADOS ({len(iocs)} total):"]
+        for ioc in iocs[:15]:
+            lines.append(f"  [{ioc.get('type','?').upper()}] {ioc.get('value','?')}  fuente={ioc.get('source','')}  ctx={ioc.get('context','')}")
 
     if vt.get("detections"):
-        lines += ["", "## DETECCIONES VIRUSTOTAL (muestra)"]
-        for d in vt["detections"][:6]:
-            lines.append(f"- {d.get('engine')}: {d.get('result','?')} ({d.get('category','')})")
+        lines += ["", f"DETECCIONES VIRUSTOTAL ({len(vt['detections'])} motores):"]
+        for d in vt["detections"][:8]:
+            lines.append(f"  {d.get('engine')}: {d.get('result','?')} ({d.get('category','')})")
 
     if intel.get("otx_pulses"):
-        lines += ["", "## PULSES OTX (muestra)"]
-        for pp in intel["otx_pulses"][:3]:
+        lines += ["", f"PULSES ALIENVAULT OTX ({intel.get('otx_pulse_count',0)} total):"]
+        for pp in intel["otx_pulses"][:5]:
             fams = ", ".join(pp.get("malware_families", [])[:3])
-            lines.append(f"- {pp.get('name','?')}{' — ' + fams if fams else ''}")
+            ttps = ", ".join(pp.get("attack_ids", [])[:3])
+            lines.append(f"  '{pp.get('name','?')}' autor={pp.get('author','')} familias={fams or 'N/A'} ATT&CK={ttps or 'N/A'}")
+
+    if intel.get("threatfox"):
+        lines += ["", "THREATFOX IOCs:"]
+        for t in intel["threatfox"][:5]:
+            lines.append(f"  {t.get('ioc','')} — {t.get('malware','')} confianza={t.get('confidence','?')}%")
+
+    if pl.get("cases"):
+        lines += ["", f"CASOS FORTRA/PHISHLABS ({len(pl['cases'])} encontrado(s)):"]
+        for c in pl["cases"][:5]:
+            lines.append(f"  Caso #{c.get('case_number','')} [{c.get('case_type','')}] estado={c.get('case_status','')} marca={c.get('brand','')} creado={str(c.get('date_created',''))[:10]}")
 
     lines += [
         "",
-        "---",
-        "Con base en estos datos, genera el siguiente informe estructurado en español (formato Markdown):",
+        "INSTRUCCIONES: Genera un TIR completo usando EXACTAMENTE estas secciones en Markdown.",
+        "Cada sección debe tener contenido sustancial. Interpreta los datos, no los copies.",
+        "Usa terminología de ciberseguridad. Razona sobre la amenaza. Sé específico y accionable.",
         "",
-        "### 1. Resumen Ejecutivo",
-        "### 2. Clasificación de la Amenaza",
-        "### 3. Hallazgos Técnicos Clave",
-        "### 4. Perfil de Infraestructura del Actor",
-        "### 5. Recomendaciones de Mitigación",
+        "## 1. Resumen Ejecutivo",
+        "(Contextualiza el hallazgo, nivel de riesgo y urgencia. Apto para directivos.)",
         "",
-        "Sé conciso, técnico y profesional. Usa terminología de ciberseguridad apropiada. No repitas datos literales del input — interprétalos.",
+        "## 2. Clasificación y Severidad de la Amenaza",
+        "(Justifica el nivel de riesgo con evidencia. Tipo de amenaza: phishing, C2, malware, etc.)",
+        "",
+        "## 3. Análisis de Inteligencia de Amenazas",
+        "(Interpreta hallazgos de Mandiant, OTX, ThreatFox, URLhaus, Fortra. Conecta patrones.)",
+        "",
+        "## 4. Análisis de Infraestructura",
+        "(Analiza geolocalización, ISP, ASN, puertos, TLS, dominio. Infraestructura dedicada o comprometida?)",
+        "",
+        "## 5. Indicadores de Compromiso Clave",
+        "(IOCs más críticos y su relevancia operacional para el equipo de seguridad.)",
+        "",
+        "## 6. Recomendaciones de Mitigación",
+        "(Acciones concretas priorizadas: bloqueos, revisiones de logs, alertas SIEM, notificaciones.)",
+        "",
+        "## 7. Conclusión",
+        "(Síntesis del riesgo. ¿Requiere acción inmediata o monitoreo continuo?)",
     ]
     return "\n".join(lines)
 
@@ -354,7 +383,7 @@ def _call_gemini(prompt: str, api_key: str) -> str:
     url  = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 2048},
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
     }
     r = _req.post(url, json=body, timeout=60)
     if r.status_code != 200:

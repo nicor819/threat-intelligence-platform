@@ -5,8 +5,8 @@ class PhishLabsClient:
     """Busca casos en PhishLabs (Case Data API) relacionados con un target."""
 
     DATA_URL  = "https://api.phishlabs.com/pdapi/cases"
-    MAX_PAGES = 1    # 1 × 200 = 200 casos más recientes (la API tarda ~17s/página)
-    PAGE_SIZE = 200
+    MAX_PAGES = 1    # 1 × 500 = 500 casos más recientes
+    PAGE_SIZE = 500
 
     def __init__(self, username: str, password: str):
         self.auth = (username, password) if username and password else None
