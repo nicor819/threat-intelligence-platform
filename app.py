@@ -18,6 +18,11 @@ import yaml
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 
 from modules import WhoisLookup, VirusTotalClient, GeoLocator, ForumScraper, URLScanClient, MandiantClient, SOCRadarClient, ThreatProfile, HostTracker, PhishLabsClient
+from modules.reporter import (
+    report_google_safebrowsing, report_netcraft, report_urlhaus,
+    report_smartscreen, report_phishreport, create_phishlabs_case,
+    PHISHLABS_BRANDS, PHISHLABS_CASE_TYPES,
+)
 from graph_builder import GraphBuilder
 
 app      = Flask(__name__)
@@ -144,6 +149,59 @@ def stream(job_id: str):
 @app.route("/output/<path:filename>")
 def serve_output(filename: str):
     return send_from_directory(OUTPUT, filename)
+
+
+# ── Reporting endpoints ───────────────────────────────────────────────────────
+
+REPORT_HANDLERS = {
+    "google_sb":    report_google_safebrowsing,
+    "netcraft":     report_netcraft,
+    "urlhaus":      report_urlhaus,
+    "smartscreen":  report_smartscreen,
+    "phishreport":  report_phishreport,
+}
+
+@app.route("/report", methods=["POST"])
+def report():
+    data    = request.json or {}
+    service = data.get("service", "")
+    url     = data.get("url", "").strip()
+    if not url:
+        return jsonify({"ok": False, "message": "URL requerida"}), 400
+    handler = REPORT_HANDLERS.get(service)
+    if not handler:
+        return jsonify({"ok": False, "message": f"Servicio '{service}' no reconocido"}), 400
+    result = handler(url)
+    return jsonify(result)
+
+
+@app.route("/report/phishlabs_case", methods=["POST"])
+def report_phishlabs_case():
+    data      = request.json or {}
+    url       = data.get("url", "").strip()
+    brand     = data.get("brand", "")
+    case_type = data.get("case_type", "Phishing")
+    if not url or not brand:
+        return jsonify({"ok": False, "message": "URL y marca son requeridos"}), 400
+    cfg  = load_cfg()
+    keys = cfg.get("api_keys", {})
+    result = create_phishlabs_case(
+        url=url,
+        brand=brand,
+        case_type=case_type,
+        username=keys.get("phishlabs_username", ""),
+        password=keys.get("phishlabs_password", ""),
+    )
+    return jsonify(result)
+
+
+@app.route("/report/config")
+def report_config():
+    """Devuelve opciones disponibles para el formulario de PhishLabs."""
+    return jsonify({
+        "brands":     list(PHISHLABS_BRANDS.keys()),
+        "case_types": list(PHISHLABS_CASE_TYPES.keys()),
+    })
 
 
 def _sse(event: str, data: dict) -> str:

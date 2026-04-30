@@ -218,7 +218,10 @@ function renderProfile(p) {
   // ⑨  PhishLabs
   if (p.phishlabs) platMain.appendChild(phishlabsEl(p.phishlabs));
 
-  // ⑩  Graph
+  // ⑩  Panel de reporte
+  platMain.appendChild(reportPanelEl(p.original_url || p.target));
+
+  // ⑪  Graph
   if (p.graph_png_url) platMain.appendChild(graphEl(p));
 
   platMain.querySelectorAll('.section, .stat-cell, .risk-header')
@@ -964,6 +967,131 @@ function phishlabsEl(pl) {
     });
   });
   bd.appendChild(t);
+
+  return s;
+}
+
+// ── Report Panel ──────────────────────────────────────────────────────────────
+function reportPanelEl(targetUrl) {
+  const s  = section('Reportar URL');
+  const bd = s.querySelector('.section-bd');
+
+  // Descripción
+  const desc = el('p', 'no-data');
+  desc.style.cssText = 'margin-bottom:.75rem;color:var(--text-2);font-size:.8rem';
+  desc.textContent = 'Reporta esta URL como maliciosa a múltiples plataformas de seguridad para acelerar su bloqueo.';
+  bd.appendChild(desc);
+
+  // ── Botones de reporte rápido ────────────────────────────────────────────
+  const services = [
+    { id: 'google_sb',   label: 'Google Safe Browsing', icon: '🔵' },
+    { id: 'netcraft',    label: 'Netcraft',              icon: '🟠' },
+    { id: 'urlhaus',     label: 'URLhaus',               icon: '🟣' },
+    { id: 'smartscreen', label: 'Microsoft SmartScreen', icon: '🔷' },
+    { id: 'phishreport', label: 'Phish Report',          icon: '🔴' },
+  ];
+
+  label(bd, 'Reporte rápido');
+  const btnRow = el('div', 'report-btn-row');
+  services.forEach(svc => {
+    const btn = el('button', 'btn-report');
+    btn.dataset.service = svc.id;
+    btn.innerHTML = `<span class="report-icon">${svc.icon}</span><span class="report-label">${svc.label}</span>`;
+    const statusDot = el('span', 'report-status');
+    btn.appendChild(statusDot);
+
+    btn.onclick = async () => {
+      btn.disabled = true;
+      statusDot.className = 'report-status spinning';
+      statusDot.title = '';
+      try {
+        const r = await fetch('/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ service: svc.id, url: targetUrl }),
+        });
+        const data = await r.json();
+        statusDot.className = `report-status ${data.ok ? 'ok' : 'fail'}`;
+        statusDot.title = data.message;
+        btn.title = data.message;
+      } catch(e) {
+        statusDot.className = 'report-status fail';
+        statusDot.title = e.message;
+      }
+      btn.disabled = false;
+    };
+    btnRow.appendChild(btn);
+  });
+  bd.appendChild(btnRow);
+
+  // ── Crear caso en PhishLabs ──────────────────────────────────────────────
+  label(bd, 'Crear caso en PhishLabs');
+
+  // Cargar opciones del servidor
+  fetch('/report/config').then(r => r.json()).then(cfg => {
+    const form = el('div', 'phishlabs-case-form');
+
+    // Selector de marca
+    const brandSel = document.createElement('select');
+    brandSel.className = 'pl-select';
+    cfg.brands.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b; opt.textContent = b;
+      brandSel.appendChild(opt);
+    });
+
+    // Selector de tipo
+    const typeSel = document.createElement('select');
+    typeSel.className = 'pl-select';
+    cfg.case_types.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      typeSel.appendChild(opt);
+    });
+
+    // Botón crear
+    const createBtn = el('button', 'btn-report btn-report-create');
+    createBtn.innerHTML = `<span class="report-icon">🚨</span><span class="report-label">Crear caso</span>`;
+    const createStatus = el('span', 'report-status');
+    createBtn.appendChild(createStatus);
+
+    const resultMsg = el('div', 'pl-result-msg');
+
+    createBtn.onclick = async () => {
+      createBtn.disabled = true;
+      createStatus.className = 'report-status spinning';
+      resultMsg.textContent = '';
+      try {
+        const r = await fetch('/report/phishlabs_case', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url:       targetUrl,
+            brand:     brandSel.value,
+            case_type: typeSel.value,
+          }),
+        });
+        const data = await r.json();
+        createStatus.className = `report-status ${data.ok ? 'ok' : 'fail'}`;
+        resultMsg.textContent  = data.message;
+        resultMsg.style.color  = data.ok ? 'var(--risk-clean)' : 'var(--risk-crit)';
+      } catch(e) {
+        createStatus.className = 'report-status fail';
+        resultMsg.textContent  = e.message;
+      }
+      createBtn.disabled = false;
+    };
+
+    const selRow = el('div', 'report-btn-row');
+    selRow.style.flexWrap = 'wrap';
+    selRow.appendChild(brandSel);
+    selRow.appendChild(typeSel);
+    selRow.appendChild(createBtn);
+
+    form.appendChild(selRow);
+    form.appendChild(resultMsg);
+    bd.appendChild(form);
+  });
 
   return s;
 }
