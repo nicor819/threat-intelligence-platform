@@ -249,14 +249,28 @@ def ai_analyze():
     if not profile:
         return jsonify({"error": "Perfil requerido"}), 400
     cfg      = load_cfg()
+    keys     = cfg.get("api_keys", {})
     settings = cfg.get("settings", {})
-    model    = settings.get("ollama_model", "") or os.environ.get("OLLAMA_MODEL", "llama3")
-    base_url = settings.get("ollama_url",   "") or os.environ.get("OLLAMA_URL",   "http://localhost:11434")
+    prompt   = _build_ai_prompt(profile)
+
+    # Intentar Ollama primero (entorno local)
+    ollama_model    = settings.get("ollama_model", "") or os.environ.get("OLLAMA_MODEL", "llama3")
+    ollama_base_url = settings.get("ollama_url",   "") or os.environ.get("OLLAMA_URL",   "http://localhost:11434")
     try:
-        analysis = _call_ollama(_build_ai_prompt(profile), model, base_url)
-        return jsonify({"analysis": analysis})
+        analysis = _call_ollama(prompt, ollama_model, ollama_base_url)
+        return jsonify({"analysis": analysis, "model": f"Ollama/{ollama_model}"})
+    except Exception:
+        pass  # Ollama no disponible — intentar Gemini
+
+    # Fallback: Gemini (entorno cloud / Railway)
+    gemini_key = keys.get("gemini", "") or os.environ.get("GEMINI_API_KEY", "")
+    if not gemini_key:
+        return jsonify({"error": "Ollama no disponible y API key de Gemini no configurada."}), 500
+    try:
+        analysis = _call_gemini(prompt, gemini_key)
+        return jsonify({"analysis": analysis, "model": "Gemini"})
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"error": f"Gemini: {exc}"}), 500
 
 
 def _build_ai_prompt(p: dict) -> str:
@@ -398,6 +412,20 @@ def ai_report_pdf():
         )
     except Exception as exc:
         return jsonify({"error": f"WeasyPrint: {exc}"}), 500
+
+
+def _call_gemini(prompt: str, api_key: str) -> str:
+    import requests as _req
+    url  = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
+    }
+    r = _req.post(url, json=body, timeout=60)
+    if r.status_code != 200:
+        err = r.json().get("error", {}).get("message", f"HTTP {r.status_code}")
+        raise Exception(err)
+    return r.json()["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def _call_ollama(prompt: str, model: str, base_url: str) -> str:
