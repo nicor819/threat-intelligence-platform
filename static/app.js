@@ -2190,56 +2190,30 @@ table.kv td.v{color:#0f172a;word-break:break-all}
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:#0d1117dd;z-index:9997;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = '<div style="color:#7c3aed;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando informe IA…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Procesado por Ollama (local)</span></div>';
+  overlay.innerHTML = '<div style="color:#7c3aed;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando informe PDF…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Procesando en el servidor</span></div>';
   document.body.appendChild(overlay);
 
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;top:0;left:-900px;width:816px;height:20000px;border:none;z-index:9998;background:#fff';
-  document.body.appendChild(iframe);
-
   try {
-    if (typeof html2pdf !== 'function') throw new Error('Librería html2pdf no cargada. Verifica conexión a internet.');
-
-    // Cargar HTML en iframe usando srcdoc (más confiable que document.write)
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Timeout: el iframe tardó más de 15s en cargar')), 15000);
-      iframe.onload = () => { clearTimeout(timer); resolve(); };
-      iframe.onerror = () => { clearTimeout(timer); reject(new Error('Error al cargar el iframe')); };
-      iframe.srcdoc = html;
+    const filename = `TIR-IA-${p.target.replace(/[^a-z0-9]/gi,'_')}.pdf`;
+    const res = await fetch('/ai/report/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, filename }),
     });
-
-    await new Promise(r => setTimeout(r, 1000));
-
-    const iDoc  = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!iDoc) throw new Error('iframe.contentDocument es null tras cargar srcdoc');
-    const iBody = iDoc.body;
-    if (!iBody) throw new Error('iframe.body es null');
-
-    const contentH = Math.max(iBody.scrollHeight, iDoc.documentElement.scrollHeight, 1056);
-    iframe.style.height = contentH + 'px';
-    iBody.style.cssText = 'width:816px;min-width:816px;overflow-x:hidden';
-    await new Promise(r => setTimeout(r, 300));
-
-    await html2pdf().set({
-      margin: 0,
-      filename: `TIR-IA-${p.target.replace(/[^a-z0-9]/gi,'_')}.pdf`,
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        windowWidth: 816,
-        scrollX: 0,
-        scrollY: 0,
-        width: 816,
-        imageTimeout: 20000,
-      },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: ['.sec', 'tr'] },
-    }).from(iBody).save();
+    if (!res.ok) {
+      let errMsg = `Error del servidor: ${res.status}`;
+      try { const j = await res.json(); errMsg = j.error || errMsg; } catch {}
+      throw new Error(errMsg);
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   } finally {
-    if (document.body.contains(iframe))  document.body.removeChild(iframe);
     if (document.body.contains(overlay)) document.body.removeChild(overlay);
   }
 }

@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import yaml
-from flask import Flask, Response, jsonify, render_template, request, send_from_directory
+from flask import Flask, Response, jsonify, render_template, request, send_from_directory, send_file
 
 from modules import WhoisLookup, VirusTotalClient, GeoLocator, ForumScraper, URLScanClient, MandiantClient, SOCRadarClient, ThreatProfile, HostTracker, PhishLabsClient
 from modules.reporter import (
@@ -376,6 +376,28 @@ def _build_ai_prompt(p: dict) -> str:
         "(Síntesis del riesgo. ¿Requiere acción inmediata o monitoreo continuo?)",
     ]
     return "\n".join(lines)
+
+
+@app.route("/ai/report/pdf", methods=["POST"])
+def ai_report_pdf():
+    """Recibe HTML del informe y devuelve un PDF generado con WeasyPrint."""
+    import io
+    data     = request.json or {}
+    html_str = data.get("html", "")
+    filename = data.get("filename", "TIR-IA.pdf")
+    if not html_str:
+        return jsonify({"error": "HTML requerido"}), 400
+    try:
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=html_str, base_url=request.host_url).write_pdf()
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as exc:
+        return jsonify({"error": f"WeasyPrint: {exc}"}), 500
 
 
 def _call_ollama(prompt: str, model: str, base_url: str) -> str:
