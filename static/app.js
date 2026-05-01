@@ -365,7 +365,7 @@ function riskHeaderEl(p) {
         : ''}
     </div>
     <div class="risk-actions">
-      <button class="btn-ai-analyze" id="btn-ai-main" onclick="generateAIAnalysis(window._currentProfile)" title="Generar Informe IA (Gemini 2.0 Flash)">
+      <button class="btn-ai-analyze" id="btn-ai-main" onclick="generateAIAnalysis(window._currentProfile)" title="Generar Informe IA (Gemini 2.5 Flash)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         Informe IA
       </button>
@@ -1880,7 +1880,7 @@ async function generateAIAnalysis(p) {
     platMain.insertBefore(aiSec, platMain.firstChild.nextSibling);
   }
   const aiBody = aiSec.querySelector('.ai-body');
-  aiBody.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div><span>Analizando con Gemini 2.0 Flash…</span></div>`;
+  aiBody.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div><span>Analizando con Gemini 2.5 Flash…</span></div>`;
 
   try {
     const res  = await fetch('/ai/analyze', {
@@ -2075,7 +2075,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   </div>
   <div class="cover-divider"></div>
   <div class="cover-body">
-    <div class="cover-eyebrow">Threat Intelligence Report · Generado con Gemini 2.0 Flash</div>
+    <div class="cover-eyebrow">Threat Intelligence Report · Generado con Gemini 2.5 Flash</div>
     <div class="cover-target">${h(p.target)}</div>
     ${p.original_url && p.original_url !== p.target
       ? `<div class="cover-orig">${h(p.original_url)}</div>`
@@ -2111,7 +2111,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   </div>
   <div class="cover-footer">
     <div class="cover-footer-meta">
-      <div>Generado: ${now} · Modelo: Gemini 2.0 Flash</div>
+      <div>Generado: ${now} · Modelo: Gemini 2.5 Flash</div>
       <div>Plataforma: VSAS Threat Intelligence Platform</div>
       <div style="margin-top:3px;color:#1e293b">Clasificación: TLP:${tlpLabel} — Solo uso interno</div>
     </div>
@@ -2134,7 +2134,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   <div class="ai-intro">
     <div class="ai-intro-icon">&#9670;</div>
     <div class="ai-intro-text">
-      El presente informe fue <strong>redactado y analizado por Gemini 2.0 Flash</strong>, modelo de inteligencia artificial de Google,
+      El presente informe fue <strong>redactado y analizado por Gemini 2.5 Flash</strong>, modelo de inteligencia artificial de Google,
       a partir de los datos recopilados por la plataforma VSAS Ciberinteligencia el ${now}.
       El análisis integra hallazgos de VirusTotal, URLScan, Mandiant, AlienVault OTX, ThreatFox, URLhaus y datos WHOIS/Geo.
       <strong>Clasificación: TLP:${tlpLabel} — Solo uso interno.</strong>
@@ -2181,7 +2181,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
 
   <hr class="divider">
   <div class="report-footer">
-    <span>Threat Intelligence Report (IA) · TLP:${tlpLabel} · Generado con Gemini 2.0 Flash</span>
+    <span>Threat Intelligence Report (IA) · TLP:${tlpLabel} · Generado con Gemini 2.5 Flash</span>
     <span>${now}</span>
   </div>
 </div>
@@ -2190,7 +2190,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:#0d1117dd;z-index:9997;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = '<div style="color:#7c3aed;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando informe IA…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Diseñado por Gemini 2.0 Flash</span></div>';
+  overlay.innerHTML = '<div style="color:#7c3aed;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando informe IA…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Diseñado por Gemini 2.5 Flash</span></div>';
   document.body.appendChild(overlay);
 
   const iframe = document.createElement('iframe');
@@ -2248,7 +2248,7 @@ function aiSectionEl() {
   wrap.innerHTML = `
     <div class="ai-header">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      <span>Informe de Inteligencia — Gemini 2.0 Flash</span>
+      <span>Informe de Inteligencia — Gemini 2.5 Flash</span>
       <span class="ai-badge">IA</span>
     </div>
     <div class="ai-body"></div>`;

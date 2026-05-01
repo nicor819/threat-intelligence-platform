@@ -380,7 +380,7 @@ def _build_ai_prompt(p: dict) -> str:
 
 def _call_gemini(prompt: str, api_key: str) -> str:
     import requests as _req
-    url  = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url  = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 4096},
@@ -508,9 +508,9 @@ def _worker(job_id: str, target: str, original_url: str, q: queue.Queue):
                     container[0]["error"] = str(e)
             t = threading.Thread(target=_run, daemon=True)
             t.start()
-            t.join(timeout=35)  # máximo 35s para no bloquear el análisis
+            t.join(timeout=65)  # máximo 65s para 3 páginas × ~17s
             if t.is_alive():
-                container[0]["error"] = "Timeout al consultar Fortra (>35s)"
+                container[0]["error"] = "Timeout al consultar Fortra (>65s)"
             return container[0]
 
         phishlabs = step("Fortra", _phishlabs_query)
