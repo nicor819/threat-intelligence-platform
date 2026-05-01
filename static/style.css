@@ -348,7 +348,7 @@ body {
   transition: color 0.1s, background 0.1s;
 }
 .h-item:hover .h-del { display: block; }
-.h-del:hover { color: var(--risk-high); background: var(--card); }
+.h-del:hover { color: var(--risk-high); background: var(--surface-2); }
 
 /* Main */
 .plat-main {
@@ -646,6 +646,8 @@ body {
 .btn-report:disabled { opacity: .5; cursor: default; }
 .btn-report-create { background: rgba(220,38,38,.08); border-color: var(--risk-crit); color: var(--risk-crit); }
 .btn-report-create:hover:not(:disabled) { background: rgba(220,38,38,.15); }
+.report-icon { flex-shrink: 0; line-height: 1; }
+.report-label { white-space: nowrap; }
 
 /* status dot */
 .report-status {
