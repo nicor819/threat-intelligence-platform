@@ -365,7 +365,7 @@ function riskHeaderEl(p) {
         : ''}
     </div>
     <div class="risk-actions">
-      <button class="btn-ai-analyze" id="btn-ai-main" onclick="generateAIAnalysis(window._currentProfile)" title="Generar Informe IA (Gemini 2.5 Flash)">
+      <button class="btn-ai-analyze" id="btn-ai-main" onclick="generateAIAnalysis(window._currentProfile)" title="Generar Informe IA (Ollama)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="flex-shrink:0"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
         Informe IA
       </button>
@@ -1855,7 +1855,7 @@ ${sec(p.graph_png_url ? '08' : '07', 'Recomendaciones', `
   }
 }
 
-// ── Análisis IA (Gemini) ──────────────────────────────────────────────────────
+// ── Análisis IA (Ollama) ──────────────────────────────────────────────────────
 async function generateAIAnalysis(p) {
   if (!p) return;
   const btn = document.getElementById('btn-ai-main');
@@ -1880,7 +1880,7 @@ async function generateAIAnalysis(p) {
     platMain.insertBefore(aiSec, platMain.firstChild.nextSibling);
   }
   const aiBody = aiSec.querySelector('.ai-body');
-  aiBody.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div><span>Analizando con Gemini 2.5 Flash…</span></div>`;
+  aiBody.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div><span>Analizando con Ollama…</span></div>`;
 
   try {
     const res  = await fetch('/ai/analyze', {
@@ -2075,7 +2075,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   </div>
   <div class="cover-divider"></div>
   <div class="cover-body">
-    <div class="cover-eyebrow">Threat Intelligence Report · Generado con Gemini 2.5 Flash</div>
+    <div class="cover-eyebrow">Threat Intelligence Report · Generado con Ollama</div>
     <div class="cover-target">${h(p.target)}</div>
     ${p.original_url && p.original_url !== p.target
       ? `<div class="cover-orig">${h(p.original_url)}</div>`
@@ -2111,7 +2111,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   </div>
   <div class="cover-footer">
     <div class="cover-footer-meta">
-      <div>Generado: ${now} · Modelo: Gemini 2.5 Flash</div>
+      <div>Generado: ${now} · Modelo: Ollama</div>
       <div>Plataforma: VSAS Threat Intelligence Platform</div>
       <div style="margin-top:3px;color:#1e293b">Clasificación: TLP:${tlpLabel} — Solo uso interno</div>
     </div>
@@ -2134,7 +2134,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
   <div class="ai-intro">
     <div class="ai-intro-icon">&#9670;</div>
     <div class="ai-intro-text">
-      El presente informe fue <strong>redactado y analizado por Gemini 2.5 Flash</strong>, modelo de inteligencia artificial de Google,
+      El presente informe fue <strong>redactado y analizado por Ollama</strong>, modelo de inteligencia artificial local,
       a partir de los datos recopilados por la plataforma VSAS Ciberinteligencia el ${now}.
       El análisis integra hallazgos de VirusTotal, URLScan, Mandiant, AlienVault OTX, ThreatFox, URLhaus y datos WHOIS/Geo.
       <strong>Clasificación: TLP:${tlpLabel} — Solo uso interno.</strong>
@@ -2181,7 +2181,7 @@ table.kv td.v{color:#0f172a;word-break:break-all}
 
   <hr class="divider">
   <div class="report-footer">
-    <span>Threat Intelligence Report (IA) · TLP:${tlpLabel} · Generado con Gemini 2.5 Flash</span>
+    <span>Threat Intelligence Report (IA) · TLP:${tlpLabel} · Generado con Ollama</span>
     <span>${now}</span>
   </div>
 </div>
@@ -2190,26 +2190,36 @@ table.kv td.v{color:#0f172a;word-break:break-all}
 
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:#0d1117dd;z-index:9997;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = '<div style="color:#7c3aed;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando informe IA…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Diseñado por Gemini 2.5 Flash</span></div>';
+  overlay.innerHTML = '<div style="color:#7c3aed;font-size:13px;font-family:monospace;letter-spacing:.08em;text-align:center">Generando informe IA…<br><span style="font-size:9px;color:#4a5568;margin-top:4px;display:block">Procesado por Ollama (local)</span></div>';
   document.body.appendChild(overlay);
 
   const iframe = document.createElement('iframe');
   iframe.style.cssText = 'position:fixed;top:0;left:-900px;width:816px;height:20000px;border:none;z-index:9998;background:#fff';
   document.body.appendChild(iframe);
+
   try {
-    if (!iframe.contentDocument) throw new Error('No se pudo acceder al iframe (contentDocument es null)');
-    iframe.contentDocument.open();
-    iframe.contentDocument.write(html);
-    iframe.contentDocument.close();
-    await new Promise(r => setTimeout(r, 1600));
-    const iBody = iframe.contentDocument.body;
-    const iDoc  = iframe.contentDocument.documentElement;
-    if (!iBody) throw new Error('iframe.body es null tras escribir el HTML');
-    const contentH = Math.max(iBody.scrollHeight, iDoc.scrollHeight, 1056);
+    if (typeof html2pdf !== 'function') throw new Error('Librería html2pdf no cargada. Verifica conexión a internet.');
+
+    // Cargar HTML en iframe usando srcdoc (más confiable que document.write)
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timeout: el iframe tardó más de 15s en cargar')), 15000);
+      iframe.onload = () => { clearTimeout(timer); resolve(); };
+      iframe.onerror = () => { clearTimeout(timer); reject(new Error('Error al cargar el iframe')); };
+      iframe.srcdoc = html;
+    });
+
+    await new Promise(r => setTimeout(r, 1000));
+
+    const iDoc  = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iDoc) throw new Error('iframe.contentDocument es null tras cargar srcdoc');
+    const iBody = iDoc.body;
+    if (!iBody) throw new Error('iframe.body es null');
+
+    const contentH = Math.max(iBody.scrollHeight, iDoc.documentElement.scrollHeight, 1056);
     iframe.style.height = contentH + 'px';
     iBody.style.cssText = 'width:816px;min-width:816px;overflow-x:hidden';
     await new Promise(r => setTimeout(r, 300));
-    if (typeof html2pdf !== 'function') throw new Error('Librería html2pdf no cargada');
+
     await html2pdf().set({
       margin: 0,
       filename: `TIR-IA-${p.target.replace(/[^a-z0-9]/gi,'_')}.pdf`,
@@ -2248,7 +2258,7 @@ function aiSectionEl() {
   wrap.innerHTML = `
     <div class="ai-header">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      <span>Informe de Inteligencia — Gemini 2.5 Flash</span>
+      <span>Informe de Inteligencia — Ollama</span>
       <span class="ai-badge">IA</span>
     </div>
     <div class="ai-body"></div>`;
