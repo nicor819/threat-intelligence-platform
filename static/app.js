@@ -19,6 +19,24 @@ platInput.addEventListener('keydown', e => e.key === 'Enter' && submitTarget(pla
 
 document.getElementById('btn-clear-history')?.addEventListener('click', clearAllHistory);
 
+// ── Mobile sidebar toggle ─────────────────────────────────────────────────────
+const _sidebarEl   = document.querySelector('.plat-sidebar');
+const _backdropEl  = document.getElementById('sidebar-backdrop');
+const _sidebarToggle = document.getElementById('btn-sidebar-toggle');
+
+function closeSidebar() {
+  _sidebarEl?.classList.remove('sidebar-open');
+  _backdropEl?.classList.remove('visible');
+}
+function openSidebar() {
+  _sidebarEl?.classList.add('sidebar-open');
+  _backdropEl?.classList.add('visible');
+}
+_sidebarToggle?.addEventListener('click', () => {
+  _sidebarEl?.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+});
+_backdropEl?.addEventListener('click', closeSidebar);
+
 // Cargar historial del servidor al arrancar
 loadServerHistory();
 
@@ -163,7 +181,7 @@ function addServerHistoryItem(entry) {
     e.stopPropagation();
     deleteHistoryEntry(entry.id);
   });
-  item.addEventListener('click', () => selectServerJob(entry.id));
+  item.addEventListener('click', () => { closeSidebar(); selectServerJob(entry.id); });
   historyList.appendChild(item);
 }
 

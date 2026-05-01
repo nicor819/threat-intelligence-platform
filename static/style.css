@@ -1106,3 +1106,117 @@ tr:hover .ioc-copy { opacity: 1; }
 /* ── Animations ──────────────────────────────────────────────── */
 .fade-in { animation: fadeIn 0.25s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── Sidebar toggle button (hidden on desktop) ───────────────── */
+.btn-sidebar-toggle { display: none; }
+.sidebar-backdrop   { display: none; }
+
+/* ── Mobile responsive ───────────────────────────────────────── */
+@media (max-width: 700px) {
+
+  /* Landing */
+  .view-landing { padding: 1.25rem 1rem; }
+  .landing-inner { gap: 1.1rem; }
+  .landing-sub { font-size: 0.85rem; }
+  .url-input-wrap input { font-size: 0.88rem; height: 44px; }
+  .btn-primary { height: 32px; padding: 0 0.85rem; font-size: 0.8rem; }
+
+  /* Platform header */
+  .btn-sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px; height: 34px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    color: var(--text-2);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-sidebar-toggle:hover { background: var(--surface-2); color: var(--text); }
+  .plat-logo { display: none; }
+  .plat-header { gap: 0.6rem; padding: 0 0.75rem; }
+
+  /* Platform body — single column */
+  .plat-body { grid-template-columns: 1fr; }
+
+  /* Sidebar as slide-in drawer */
+  .plat-sidebar {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    bottom: 0;
+    width: 270px;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    border-right: 1px solid var(--border-2);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+  }
+  .plat-sidebar.sidebar-open { transform: translateX(0); }
+
+  /* Backdrop */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: 48px;
+    background: rgba(0,0,0,0);
+    z-index: 199;
+    pointer-events: none;
+    transition: background 0.22s ease;
+  }
+  .sidebar-backdrop.visible {
+    background: rgba(0,0,0,0.65);
+    pointer-events: auto;
+  }
+
+  /* Main content */
+  .plat-main { padding: 1rem; }
+
+  /* Risk header — wrap on narrow */
+  .risk-header { padding: 1rem; gap: 1rem; flex-wrap: wrap; }
+  .risk-circle { width: 52px; height: 52px; }
+  .risk-circle .rc-num { font-size: 1rem; }
+
+  /* Risk actions — row + wrap */
+  .risk-actions { flex-direction: row; flex-wrap: wrap; gap: 0.4rem; }
+  .btn-ai-analyze, .btn-reanalyze, .btn-report-open {
+    font-size: 0.72rem;
+    padding: 0.35rem 0.7rem;
+  }
+  .btn-tir { height: 32px; font-size: 0.72rem; padding: 0 0.85rem; }
+  .btn-whatsapp { height: 28px; font-size: 0.7rem; margin-left: 0; }
+
+  /* Two-col → single col */
+  .two-col { grid-template-columns: 1fr; }
+
+  /* KV rows */
+  .kv-k { min-width: 90px; font-size: 0.78rem; }
+  .kv-v { font-size: 0.8rem; }
+
+  /* Section */
+  .section-bd { padding: 0.75rem; overflow-x: auto; }
+
+  /* Tables — horizontal scroll */
+  .tbl { min-width: 480px; }
+
+  /* Stat grid */
+  .stat-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+
+  /* Buttons in report panel */
+  .btn-report { height: 30px; padding: 0 0.65rem; font-size: 0.72rem; }
+
+  /* Modal */
+  .modal-box { width: calc(100vw - 1rem); max-height: calc(100vh - 1rem); }
+  .modal-body { padding: 1rem; gap: 1rem; }
+  .modal-btn-grid { grid-template-columns: 1fr 1fr; }
+  .modal-fortra-row { flex-direction: column; }
+  .modal-fortra-row .pl-select { width: 100%; }
+  .modal-hdr { padding: 0.875rem 1rem; }
+
+  /* DNS block */
+  .dns-block { font-size: 0.72rem; }
+}
